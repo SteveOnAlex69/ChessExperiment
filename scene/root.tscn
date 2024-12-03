@@ -1,0 +1,30 @@
+[gd_scene load_steps=7 format=3 uid="uid://dvjr0rf6ciart"]
+
+[ext_resource type="Script" path="res://scripts/root.gd" id="1_wafjg"]
+[ext_resource type="Texture2D" uid="uid://c8171s1yn26la" path="res://resource_packs/image/chess_board.png" id="2_e5n4u"]
+[ext_resource type="PackedScene" uid="uid://be072dmcpimuf" path="res://scene/pieces.tscn" id="2_h5j5n"]
+[ext_resource type="AudioStream" uid="uid://ctygtnay057fs" path="res://resource_packs/sound/piece_move.mp3" id="4_mnwkr"]
+[ext_resource type="AudioStream" uid="uid://cvv8jlvh7axfy" path="res://resource_packs/sound/piece_capture.mp3" id="5_lg3vx"]
+[ext_resource type="PackedScene" uid="uid://d0kbf5doa85d5" path="res://scene/selected_overlay.tscn" id="6_tcrqt"]
+
+[node name="Root" type="Node2D"]
+script = ExtResource("1_wafjg")
+
+[node name="ChessBoard" type="Sprite2D" parent="."]
+z_index = -1
+position = Vector2(640, 360)
+scale = Vector2(1.05, 1.05)
+texture = ExtResource("2_e5n4u")
+
+[node name="Pieces" parent="." instance=ExtResource("2_h5j5n")]
+visible = false
+
+[node name="PieceMoveSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_mnwkr")
+
+[node name="PieceCaptureSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_lg3vx")
+
+[node name="SelectedOverlay" parent="." instance=ExtResource("6_tcrqt")]
+visible = false
+position = Vector2(71.7933, 65.0383)

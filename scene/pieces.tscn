@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://be072dmcpimuf"]
+
+[ext_resource type="Script" path="res://scripts/pieces.gd" id="1_e2woa"]
+[ext_resource type="Texture2D" uid="uid://ce1wjjftmitaq" path="res://resource_packs/image/pieces.png" id="2_uhnbe"]
+
+[node name="Pieces" type="Node2D"]
+script = ExtResource("1_e2woa")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 1
+texture = ExtResource("2_uhnbe")
+region_enabled = true
+region_rect = Rect2(0, 0, 64, 64)
