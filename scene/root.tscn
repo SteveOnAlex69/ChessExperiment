@@ -33,3 +33,12 @@ position = Vector2(71.7933, 65.0383)
 
 [node name="HintOverlay" parent="." instance=ExtResource("7_susdb")]
 visible = false
+
+[node name="FlipBoard" type="Button" parent="."]
+offset_left = 118.0
+offset_top = 184.0
+offset_right = 205.0
+offset_bottom = 215.0
+text = "Flip Board"
+
+[connection signal="button_down" from="FlipBoard" to="." method="_on_flip_board_button_down"]

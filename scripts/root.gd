@@ -13,9 +13,14 @@ var spacing:float = 75.5;
 var chess_piece_instance_list = [];
 var selected_cell = "";
 
+var flipped_board = false;
+
 # <------------------------- Utility function start ------------------------->
 
 func vector_to_pos(p: Vector2):
+	if (flipped_board) :
+		p.x = 7 - p.x;
+		p.y = 7 - p.y;
 	return Vector2(starting_point.x + p.y * spacing, starting_point.y + (7 - p.x) * spacing);
 	
 func get_cell(mouse_pos: Vector2):
@@ -49,6 +54,7 @@ func renderBoard(board_state):
 			var current_cell = Utility.vector_to_cell_index(Vector2(i, j));
 			chess_piece_instance_list[current_cell].set_type(chessboard[current_cell]);
 			
+
 func initializeOverlay():
 	selected_overlay = selected_overlay_scene.instantiate();
 	add_child(selected_overlay);
@@ -98,8 +104,7 @@ func update_hint_list(move_list):
 		hint_instance.position = vector_to_pos(i);
 		hint_instance.update_display(true);
 		hint_instance.set_sprite_opacity(0.5);
-		hint_instance.set_sprite_scale(Vector2(0.75, 0.75));
-	
+		hint_instance.set_sprite_scale(Vector2(0.6, 0.6));
 
 func update_selected_cell(cur_cell: String):
 	clear_hint_list();
@@ -145,3 +150,9 @@ func _input(event):
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
 	pass
+
+func _on_flip_board_button_down():
+	flipped_board = !flipped_board;
+	initialRender();
+	renderBoard(chessboard);
+	
