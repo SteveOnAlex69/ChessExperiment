@@ -1,8 +1,6 @@
 extends Node2D
 
-var Validator = preload("res:///scripts/move_validator.gd");
-var Utility = preload("res:///scripts/utility_functions.gd")
-var chessboard = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
+var chessboard = ChessBoard.new();
 var chess_piece = preload("res://scene/pieces.tscn");
 var selected_overlay_scene = preload("res://scene/selected_overlay.tscn");
 var hint_overlay_scene = preload("res://scene/hint_overlay.tscn");
@@ -52,7 +50,7 @@ func renderBoard(board_state):
 	for i in range(0, 8):
 		for j in range(0, 8):
 			var current_cell = Utility.vector_to_cell_index(Vector2(i, j));
-			chess_piece_instance_list[current_cell].set_type(chessboard[current_cell]);
+			chess_piece_instance_list[current_cell].set_type(chessboard.get_cell(current_cell));
 			
 
 func initializeOverlay():
@@ -113,7 +111,7 @@ func update_selected_cell(cur_cell: String):
 		relocateOverlay(Vector2(-1, -1));
 	else:
 		relocateOverlay(Utility.cell_notation_to_vector(selected_cell));
-		var move_list = Validator.generate_move_from_cell(Utility, chessboard, Utility.cell_notation_to_int(selected_cell));
+		var move_list = Validator.generate_move_from_cell(chessboard, Utility.cell_notation_to_int(selected_cell));
 		update_hint_list(move_list);
 
 func _input(event):
@@ -123,26 +121,31 @@ func _input(event):
 		if (cur_cell != "None"):  # if clicked inside the chessboard
 			if (selected_cell == ""): # if not selecting any cell, select the cell
 				var cell = Utility.cell_notation_to_int(cur_cell);
-				if chessboard[cell] != ".":
+				if chessboard.get_cell(cell) != ".":
 					update_selected_cell(cur_cell);
 			else:
 				var cell1 = Utility.cell_notation_to_int(selected_cell);
 				var cell2 = Utility.cell_notation_to_int(cur_cell);
 				
-				if chessboard[cell2] != "." && (Utility.is_upper_case(chessboard[cell1]) == Utility.is_upper_case(chessboard[cell2])): # if clicked on the same cell, cancel
+				var val1 = chessboard.get_cell(cell1);
+				var val2 = chessboard.get_cell(cell2);
+				if val2 != "." && (Utility.is_upper_case(val1) == Utility.is_upper_case(val2)): # if clicked on the same cell, cancel
 					update_selected_cell(cur_cell);
 				else:
-					if Validator.validate_move(Utility, chessboard, cell1, cell2): # swap the two cell
-						if (chess_piece_instance_list[cell2].current_piece != ".") :
-							play_sound("Capture");
-						else: 
-							play_sound("Move");
+					match Validator.validate_move(chessboard, cell1, cell2):
+						1:
+							if (chess_piece_instance_list[cell2].current_piece != ".") :
+								play_sound("Capture");
+							else: 
+								play_sound("Move");
+								
+							chessboard.set_cell(cell2, chessboard.get_cell((cell1)));
+							chessboard.set_cell(cell1, ".");
 							
-						chessboard[cell2] = chessboard[cell1];
-						chessboard[cell1] = ".";
-						
-						renderBoard(chessboard);
-						update_selected_cell("");
+							renderBoard(chessboard);
+							update_selected_cell("");
+						_:
+							pass;
 		else: #cancel selected cell if clicked outside the chessboard
 			selected_cell = "";
 			relocateOverlay(Vector2(-1, -1));

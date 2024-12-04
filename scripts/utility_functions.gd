@@ -1,5 +1,6 @@
 extends Node
 
+class_name Utility;
 
 static func chebyshev_distance(a: Vector2, b:Vector2):
 	return max(abs(a.x - b.x), abs(a.y - b.y));	
