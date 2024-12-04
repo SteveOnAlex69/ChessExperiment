@@ -85,11 +85,13 @@ static func check_pawn_move(Utility, chessboard, coord1: Vector2, coord2: Vector
 	return false;
 	
 
-static func validate_move(chessboard, cell1: int, cell2: int):
-	var Utility = load("res:///scripts/utility_functions.gd")
+static func validate_move(Utility, chessboard, cell1: int, cell2: int):
 	var cur = chessboard[cell1].to_lower();
 	var coord1 = Utility.int_to_cell_vector(cell1);
 	var coord2 = Utility.int_to_cell_vector(cell2);
+	
+	if (chessboard[cell2] != ".") && (Utility.is_upper_case(chessboard[cell1]) == Utility.is_upper_case(chessboard[cell2])):
+		return false;
 	
 	match cur:
 		"k":
@@ -105,8 +107,16 @@ static func validate_move(chessboard, cell1: int, cell2: int):
 		"p":
 			return check_pawn_move(Utility, chessboard, coord1, coord2);
 			
-	
 	return true;
+	
+
+static func generate_move_from_cell(Utility, chessboard, cell1: int):
+	var move_list: Array;
+	for i in range(0, 8):
+		for j in range(0, 8):
+			if (validate_move(Utility, chessboard, cell1, Utility.vector_to_cell_index(Vector2(i, j)))):
+				move_list.append(Vector2(i, j));
+	return move_list;
 
 # Called when the node enters the scene tree for the first time.
 func _ready():

@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://bjj4ps8qj5jkq"]
+
+[ext_resource type="Texture2D" uid="uid://cga82nw4hvc8d" path="res://resource_packs/image/black_circle.png" id="1_0bwyl"]
+[ext_resource type="Script" path="res://scripts/hint_overlay.gd" id="1_w2yru"]
+
+[node name="HintOverlay" type="Node2D"]
+script = ExtResource("1_w2yru")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_0bwyl")
