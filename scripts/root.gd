@@ -82,6 +82,8 @@ func play_sound(arg:String):
 			$PieceMoveSound.play();
 		"Capture":
 			$PieceCaptureSound.play();
+		"Castle":
+			$CastlingSound.play();
 		_:
 			print("What?");
 			
@@ -140,6 +142,13 @@ func _input(event):
 								play_sound("Move");
 								
 							chessboard.normal_move(cell1, cell2);
+							
+							renderBoard(chessboard);
+							update_selected_cell("");
+						2:
+							play_sound("Castle");
+							
+							chessboard.castle(cell1, cell2);
 							
 							renderBoard(chessboard);
 							update_selected_cell("");

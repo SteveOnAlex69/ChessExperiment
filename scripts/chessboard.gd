@@ -3,7 +3,7 @@ extends Node
 
 class_name ChessBoard;
 
-enum MOVE {Invalid, Normal};
+enum MOVE {Invalid, Normal, Castle};
 
 var chessboard: Array = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
 var white_castle: Array;
@@ -13,7 +13,7 @@ var most_recent_move;
 
 func _init():
 	white_castle.append(1); white_castle.append(1);
-	white_castle.append(1); white_castle.append(1);
+	black_castle.append(1); black_castle.append(1);
 
 func get_cell(cell:int):
 	return chessboard[cell];
@@ -25,40 +25,76 @@ func normal_move(cell1: int, cell2: int):
 	var pos = Utility.int_to_cell_vector(cell1);
 	if chessboard[cell1].to_lower() == 'r':
 		if pos.x == 0:
-			match pos.y:
-				0: 
-					white_castle[0] = 0;
-				7:
-					white_castle[0] = 1;
-		if pos.y == 0:
-			match pos.y:
-				0: 
-					black_castle[0] = 0;
-				7:
-					black_castle[0] = 1;
+			if pos.y == 0:
+				white_castle[0] = 0;
+			if pos.y == 7:
+				white_castle[1] = 0;
+		if pos.x == 7:
+			if pos.y == 0:
+				black_castle[0] = 0;
+			if pos.y == 7:
+				black_castle[1] = 0;
+	if chessboard[cell1].to_lower() == 'k':
+		if chessboard[cell1] == 'K':
+			white_castle[0] = 0;
+			white_castle[1] = 0;
+		else:
+			black_castle[0] = 0;
+			black_castle[1] = 0;
 			
-		
 	chessboard[cell2] = chessboard[cell1];
 	chessboard[cell1] = ".";
+	
+
+func castle(cell1: int, cell2: int):
+	normal_move(cell1, cell2);
+	var coord1 = Utility.int_to_cell_vector(cell1);
+	var coord2 = Utility.int_to_cell_vector(cell2);
+	if coord1.y > coord2.y:
+		var rook_coord = Vector2(coord2.x, 0);
+		var desired_coord = Vector2(coord2.x, coord2.y + 1);
+		var cell3 = Utility.vector_to_cell_index(rook_coord);
+		var cell4 = Utility.vector_to_cell_index(desired_coord);
+		normal_move(cell3, cell4);
+	else:
+		var rook_coord = Vector2(coord2.x, 7);
+		var desired_coord = Vector2(coord2.x, coord2.y - 1);
+		var cell3 = Utility.vector_to_cell_index(rook_coord);
+		var cell4 = Utility.vector_to_cell_index(desired_coord);
+		normal_move(cell3, cell4);
 	
 # <-------- Move Validator Start -------->
 
 func check_king_move(coord1: Vector2, coord2: Vector2): 
-	# king move rule is the same as king capture rule, so nothing to edit
-	if Utility.is_king_distance(coord1, coord2):
+	if Utility.is_king_distance(coord1, coord2): # normal move
 		return MOVE.Normal;
+	# castling
+	if (coord1.x == coord2.x) && (Utility.chebyshev_distance(coord1, coord2) == 2):
+		var is_white = Utility.is_upper_case(chessboard[Utility.vector_to_cell_index(coord1)]);
+		if coord1.y > coord2.y: #castle to the 1st file
+			if is_white:
+				if (white_castle[0] == 1) && check_rook_move(coord1, Vector2(coord1.x, 0)):
+					return MOVE.Castle;
+			else:
+				if (black_castle[0] == 1) && check_rook_move(coord1, Vector2(coord1.x, 0)):
+					return MOVE.Castle;
+		else: #castle to the 8th file
+			if is_white:
+				if (white_castle[1] == 1) && check_rook_move(coord1, Vector2(coord1.x, 7)):
+					return MOVE.Castle;
+			else:
+				if (black_castle[1] == 1) && check_rook_move(coord1, Vector2(coord1.x, 7)):
+					return MOVE.Castle;
 	return MOVE.Invalid;
 	
 
 func check_knight_move(coord1: Vector2, coord2: Vector2):
-	# knight move rule is the same as knight capture rule, so nothing to edit
 	if Utility.is_knight_distance(coord1, coord2):
 		return MOVE.Normal;
 	return MOVE.Invalid;
 	
 	
 func check_bishop_move(coord1: Vector2, coord2: Vector2):
-	# bishop move rule is the same as bishop capture rule, so nothing to edit
 	if Utility.is_bishop_distance(coord1, coord2):
 		if (coord1.x - coord1.y) == (coord2.x - coord2.y): # main diagonal
 			var offset = coord1.y - coord1.x;
@@ -83,7 +119,6 @@ func check_bishop_move(coord1: Vector2, coord2: Vector2):
 		
 
 func check_rook_move(coord1: Vector2, coord2: Vector2):
-	# rook move rule is the same as rook capture rule, so nothing to edit
 	if Utility.is_rook_distance(coord1, coord2):
 		if coord1.x == coord2.x:
 			var l = min(coord1.y, coord2.y);
@@ -110,7 +145,6 @@ func check_queen_move(coord1: Vector2, coord2: Vector2):
 	return MOVE.Invalid;
 		
 func check_pawn_move(coord1: Vector2, coord2: Vector2):
-	# pawn move rule is different from pawn capture rule, so I shall edit
 	var cell1:int = Utility.vector_to_cell_index(coord1);
 	var cell2:int = Utility.vector_to_cell_index(coord2);
 	var is_white = Utility.is_upper_case(chessboard[cell1]);

@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://dvjr0rf6ciart"]
+[gd_scene load_steps=9 format=3 uid="uid://dvjr0rf6ciart"]
 
 [ext_resource type="Script" path="res://scripts/root.gd" id="1_wafjg"]
 [ext_resource type="Texture2D" uid="uid://c8171s1yn26la" path="res://resource_packs/image/chess_board.png" id="2_e5n4u"]
@@ -6,6 +6,7 @@
 [ext_resource type="AudioStream" uid="uid://ctygtnay057fs" path="res://resource_packs/sound/piece_move.mp3" id="4_mnwkr"]
 [ext_resource type="AudioStream" uid="uid://cvv8jlvh7axfy" path="res://resource_packs/sound/piece_capture.mp3" id="5_lg3vx"]
 [ext_resource type="PackedScene" uid="uid://d0kbf5doa85d5" path="res://scene/selected_overlay.tscn" id="6_tcrqt"]
+[ext_resource type="AudioStream" uid="uid://battgochst2d8" path="res://resource_packs/sound/castle.mp3" id="6_xn2vp"]
 [ext_resource type="PackedScene" uid="uid://bjj4ps8qj5jkq" path="res://scene/hint_overlay.tscn" id="7_susdb"]
 
 [node name="Root" type="Node2D"]
@@ -26,6 +27,10 @@ volume_db = 5.0
 
 [node name="PieceCaptureSound" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("5_lg3vx")
+
+[node name="CastlingSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_xn2vp")
+volume_db = 5.0
 
 [node name="SelectedOverlay" parent="." instance=ExtResource("6_tcrqt")]
 visible = false
