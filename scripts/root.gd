@@ -111,7 +111,7 @@ func update_selected_cell(cur_cell: String):
 		relocateOverlay(Vector2(-1, -1));
 	else:
 		relocateOverlay(Utility.cell_notation_to_vector(selected_cell));
-		var move_list = Validator.generate_move_from_cell(chessboard, Utility.cell_notation_to_int(selected_cell));
+		var move_list = chessboard.generate_move_from_cell(Utility.cell_notation_to_int(selected_cell));
 		update_hint_list(move_list);
 
 func _input(event):
@@ -132,15 +132,14 @@ func _input(event):
 				if val2 != "." && (Utility.is_upper_case(val1) == Utility.is_upper_case(val2)): # if clicked on the same cell, cancel
 					update_selected_cell(cur_cell);
 				else:
-					match Validator.validate_move(chessboard, cell1, cell2):
+					match chessboard.validate_move(cell1, cell2):
 						1:
 							if (chess_piece_instance_list[cell2].current_piece != ".") :
 								play_sound("Capture");
 							else: 
 								play_sound("Move");
 								
-							chessboard.set_cell(cell2, chessboard.get_cell((cell1)));
-							chessboard.set_cell(cell1, ".");
+							chessboard.normal_move(cell1, cell2);
 							
 							renderBoard(chessboard);
 							update_selected_cell("");
