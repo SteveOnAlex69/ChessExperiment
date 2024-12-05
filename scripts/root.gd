@@ -1,10 +1,12 @@
 extends Node2D
 
 var chessboard = ChessBoard.new();
+
 var chess_piece = preload("res://scene/pieces.tscn");
-var selected_overlay_scene = preload("res://scene/selected_overlay.tscn");
 var hint_overlay_scene = preload("res://scene/hint_overlay.tscn");
-var selected_overlay;
+var selected_overlay_scene = preload("res://scene/selected_overlay.tscn");
+var promotion_gui_scene = preload("res://scene/promotion_gui.tscn");
+
 var hint_overlay_list: Array;
 var starting_point = Vector2(376, 96);
 var spacing:float = 75.5;
@@ -12,6 +14,10 @@ var chess_piece_instance_list = [];
 var selected_cell = "";
 
 var flipped_board = false;
+var selected_overlay = selected_overlay_scene.instantiate();
+var promotion_overlay = selected_overlay_scene.instantiate();
+var promotion_gui = promotion_gui_scene.instantiate();
+var promotion_pieces: Array;
 
 # <------------------------- Utility function start ------------------------->
 
@@ -26,6 +32,10 @@ func get_cell(mouse_pos: Vector2):
 		if (Utility.chebyshev_distance(i.position, mouse_pos) < 32):
 			return i.current_cell;
 	return "None";
+	
+
+func get_viewport_size() -> Vector2:
+	return get_viewport().size;
 	
 # <------------------------- Utility function end ------------------------->
 
@@ -54,11 +64,18 @@ func renderBoard(board_state):
 			
 
 func initializeOverlay():
-	selected_overlay = selected_overlay_scene.instantiate();
-	add_child(selected_overlay);
+	var v = get_viewport_size();
 	
-	selected_overlay.set_sprite_scale(Vector2(spacing, spacing));
-	selected_overlay.set_sprite_opacity(0.5);
+	add_child(selected_overlay); 
+	selected_overlay.all_in_one(false, Vector2(spacing, spacing), 0.5, 0);
+	
+	add_child(promotion_overlay);
+	promotion_overlay.all_in_one(false, v, 0.3, 2);
+	promotion_overlay.position = Vector2(v.x / 2, v.y / 2);
+	
+	add_child(promotion_gui);
+	promotion_gui.all_in_one(false, Vector2(spacing, spacing * 4), 1, 3);
+	
 	
 			
 func relocateOverlay(v: Vector2):
@@ -84,6 +101,8 @@ func play_sound(arg:String):
 			$PieceCaptureSound.play();
 		"Castle":
 			$CastlingSound.play();
+		"Promote":
+			$PromoteSound.play();
 		_:
 			print("What?");
 			
@@ -102,9 +121,7 @@ func update_hint_list(move_list):
 		add_child(hint_instance);
 		
 		hint_instance.position = vector_to_pos(i);
-		hint_instance.update_display(true);
-		hint_instance.set_sprite_opacity(0.5);
-		hint_instance.set_sprite_scale(Vector2(0.6, 0.6));
+		hint_instance.all_in_one(true, Vector2(0.6, 0.6), 0.5, 2);
 
 func update_selected_cell(cur_cell: String):
 	clear_hint_list();
@@ -115,53 +132,130 @@ func update_selected_cell(cur_cell: String):
 		relocateOverlay(Utility.cell_notation_to_vector(selected_cell));
 		var move_list = chessboard.generate_move_from_cell(Utility.cell_notation_to_int(selected_cell));
 		update_hint_list(move_list);
+		
+	
+func handle_normal_move(cell1: int, cell2: int):
+	if (chess_piece_instance_list[cell2].current_piece != ".") :
+		play_sound("Capture");
+	else: 
+		play_sound("Move");
+		
+	chessboard.normal_move(cell1, cell2);
+	renderBoard(chessboard);
+	update_selected_cell("");
+	
+func handle_castle(cell1: int, cell2: int):
+	play_sound("Castle");
+	chessboard.castle(cell1, cell2);
+	renderBoard(chessboard);
+	update_selected_cell("");
+	
+func handle_enpassant(cell1: int, cell2: int):
+	play_sound("Capture");
+	chessboard.en_passant(cell1, cell2);
+	
+	renderBoard(chessboard);
+	update_selected_cell("");
+	
+func handle_promotion(cell1: int, cell2: int):
+	var is_white = Utility.is_upper_case(chessboard.get_cell(cell1));
+	chessboard.normal_move(cell1, cell2);
+	renderBoard(chessboard);
+	update_selected_cell("");
+	
+	create_promotion_pop_up(is_white, Utility.int_to_cell_vector(cell2));
+	
+
+func create_promotion_pop_up(is_white: bool, v: Vector2):
+	clear_hint_list();
+	promotion_overlay.update_display(true);
+	promotion_gui.update_display(true);
+	
+	v = vector_to_pos(v);
+	var _v = v;
+	if (is_white != flipped_board): 
+		_v.y += spacing * 1.5;
+	else:
+		_v.y -= spacing * 1.5;
+	promotion_gui.position = _v;
+		
+	
+	var arr: Array = ["q", "r", "b", "n"];
+	for i in range(0, 4): 
+		if is_white:
+			arr[i] = arr[i].to_upper();
+		var piece_instance = chess_piece.instantiate();
+		
+		promotion_pieces.append(piece_instance);
+		add_child(piece_instance);
+		
+		piece_instance.set_type(arr[i]);
+		var v1 = v;
+		if (is_white != flipped_board) :
+			v1.y += spacing * i;
+		else:
+			v1.y -= spacing * i;
+		piece_instance.set_sprite_layer(4);
+		piece_instance.position = v1;
+		
+func promotion_call(cell: int, s: String):
+	if s == "None":
+		chessboard.rollback();
+	else:
+		play_sound("Promote");
+		var coord = Utility.int_to_cell_vector(cell);
+		chessboard.promote(cell, s);
+	renderBoard(chessboard);
+	update_selected_cell("");
+	
+	promotion_overlay.update_display(false);
+	promotion_gui.update_display(false);
+	for i in promotion_pieces:
+		remove_child(i);
+	promotion_pieces.clear();
+	
+	
+func handling_mouse_press(mouse_pos: Vector2):
+	var cur_cell = get_cell(mouse_pos);
+	if (cur_cell != "None"):  # if clicked inside the chessboard
+		if (selected_cell == ""): # if not selecting any cell, select the cell
+			var cell = Utility.cell_notation_to_int(cur_cell);
+			if chessboard.get_cell(cell) != ".":
+				update_selected_cell(cur_cell);
+		else:
+			var cell1 = Utility.cell_notation_to_int(selected_cell);
+			var cell2 = Utility.cell_notation_to_int(cur_cell);
+			
+			var val1 = chessboard.get_cell(cell1);
+			var val2 = chessboard.get_cell(cell2);
+			if val2 != "." && (Utility.is_upper_case(val1) == Utility.is_upper_case(val2)): # if clicked on the same cell, cancel
+				update_selected_cell(cur_cell);
+			else:
+				match chessboard.validate_move(cell1, cell2):
+					1:
+						handle_normal_move(cell1, cell2);
+					2: 
+						handle_castle(cell1, cell2);
+					3:
+						handle_enpassant(cell1, cell2);
+					4:
+						handle_promotion(cell1, cell2);
+					_:
+						pass;
+	else: #cancel selected cell if clicked outside the chessboard
+		update_selected_cell("");
 
 func _input(event):
 	if event is InputEventMouseButton and event.pressed:
 		var mouse_pos = get_viewport().get_mouse_position();
-		var cur_cell = get_cell(mouse_pos);
-		if (cur_cell != "None"):  # if clicked inside the chessboard
-			if (selected_cell == ""): # if not selecting any cell, select the cell
-				var cell = Utility.cell_notation_to_int(cur_cell);
-				if chessboard.get_cell(cell) != ".":
-					update_selected_cell(cur_cell);
-			else:
-				var cell1 = Utility.cell_notation_to_int(selected_cell);
-				var cell2 = Utility.cell_notation_to_int(cur_cell);
-				
-				var val1 = chessboard.get_cell(cell1);
-				var val2 = chessboard.get_cell(cell2);
-				if val2 != "." && (Utility.is_upper_case(val1) == Utility.is_upper_case(val2)): # if clicked on the same cell, cancel
-					update_selected_cell(cur_cell);
-				else:
-					match chessboard.validate_move(cell1, cell2):
-						1:
-							if (chess_piece_instance_list[cell2].current_piece != ".") :
-								play_sound("Capture");
-							else: 
-								play_sound("Move");
-								
-							chessboard.normal_move(cell1, cell2);
-							
-							renderBoard(chessboard);
-							update_selected_cell("");
-						2: 
-							play_sound("Castle");
-							
-							chessboard.castle(cell1, cell2);
-							
-							renderBoard(chessboard);
-							update_selected_cell("");
-						3:
-							play_sound("Capture");
-							chessboard.en_passant(cell1, cell2);
-							
-							renderBoard(chessboard);
-							update_selected_cell("");
-						_:
-							pass;
-		else: #cancel selected cell if clicked outside the chessboard
-			update_selected_cell("");
+		if promotion_pieces.size() == 4: # are opening promotion box
+			var chosen_piece = "None";
+			for i in promotion_pieces:
+				if (Utility.chebyshev_distance(i.position, mouse_pos) < 32):
+					chosen_piece = i.current_piece;
+			promotion_call(chessboard.most_recent_move[1], chosen_piece);
+		else:
+			handling_mouse_press(mouse_pos);
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):

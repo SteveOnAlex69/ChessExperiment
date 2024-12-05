@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://crejthgjofaqd"]
+
+[ext_resource type="Texture2D" uid="uid://drc0d0qlpcuom" path="res://resource_packs/image/square.png" id="1_dhuj2"]
+[ext_resource type="Script" path="res://scripts/overlay.gd" id="1_pgvxv"]
+
+[node name="PromotionGUI" type="Node2D"]
+script = ExtResource("1_pgvxv")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_dhuj2")
+region_enabled = true
+region_rect = Rect2(1, 0, 1, 1)

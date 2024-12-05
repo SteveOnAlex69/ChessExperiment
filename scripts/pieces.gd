@@ -55,6 +55,12 @@ func update_display():
 		
 func set_current_cell(cell: String):
 	current_cell = cell;
+	
+
+func set_sprite_layer(i: int):
+	var sprite = $Sprite2D;
+	if sprite && sprite is Sprite2D:
+		sprite.z_index = i;
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
