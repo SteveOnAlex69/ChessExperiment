@@ -3,13 +3,13 @@ extends Node
 
 class_name ChessBoard;
 
-enum MOVE {Invalid, Normal, Castle};
+enum MOVE {Invalid, Normal, Castle, EnPassant};
 
 var chessboard: Array = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
 var white_castle: Array;
 var black_castle: Array;
 
-var most_recent_move;
+var most_recent_move: Array;
 
 func _init():
 	white_castle.append(1); white_castle.append(1);
@@ -44,6 +44,7 @@ func normal_move(cell1: int, cell2: int):
 			
 	chessboard[cell2] = chessboard[cell1];
 	chessboard[cell1] = ".";
+	most_recent_move = [cell1, cell2];
 	
 
 func castle(cell1: int, cell2: int):
@@ -62,6 +63,16 @@ func castle(cell1: int, cell2: int):
 		var cell3 = Utility.vector_to_cell_index(rook_coord);
 		var cell4 = Utility.vector_to_cell_index(desired_coord);
 		normal_move(cell3, cell4);
+		
+
+func en_passant(cell1: int, cell2: int):
+	normal_move(cell1, cell2);
+	var coord1 = Utility.int_to_cell_vector(cell1);
+	var coord2 = Utility.int_to_cell_vector(cell2);
+	var coord3 = Vector2(coord1.x, coord2.y);
+	
+	var cell3 = Utility.vector_to_cell_index(coord3);
+	normal_move(cell3, cell3);
 	
 # <-------- Move Validator Start -------->
 
@@ -164,6 +175,12 @@ func check_pawn_move(coord1: Vector2, coord2: Vector2):
 		if ((coord1.x < coord2.x) != is_white):
 			return MOVE.Invalid;
 		return MOVE.Normal;
+	if (most_recent_move.size() == 2) && (chessboard[most_recent_move[1]].to_lower() == "p") && (chessboard[most_recent_move[1]] != chessboard[cell1]):
+		var coord3 = Utility.int_to_cell_vector(most_recent_move[0]);
+		var coord4 = Utility.int_to_cell_vector(most_recent_move[1]);
+		if (Utility.chebyshev_distance(coord3, coord4) == 2):
+			if (Utility.manhattan_distance(coord1, coord4) == 1) && (coord1.x == coord4.x) && coord2 == Vector2((coord4.x + coord3.x) / 2, coord4.y):
+				return MOVE.EnPassant;
 	
 	return MOVE.Invalid;
 	

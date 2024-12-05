@@ -145,18 +145,23 @@ func _input(event):
 							
 							renderBoard(chessboard);
 							update_selected_cell("");
-						2:
+						2: 
 							play_sound("Castle");
 							
 							chessboard.castle(cell1, cell2);
 							
 							renderBoard(chessboard);
 							update_selected_cell("");
+						3:
+							play_sound("Capture");
+							chessboard.en_passant(cell1, cell2);
+							
+							renderBoard(chessboard);
+							update_selected_cell("");
 						_:
 							pass;
 		else: #cancel selected cell if clicked outside the chessboard
-			selected_cell = "";
-			relocateOverlay(Vector2(-1, -1));
+			update_selected_cell("");
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
