@@ -54,4 +54,11 @@ text = "Flip Board"
 
 [node name="PromotionGUI" parent="." instance=ExtResource("10_efjbo")]
 
+[node name="IsWhiteMove" type="Label" parent="."]
+offset_left = 120.0
+offset_top = 134.0
+offset_right = 203.0
+offset_bottom = 160.0
+text = "White turn"
+
 [connection signal="button_down" from="FlipBoard" to="." method="_on_flip_board_button_down"]

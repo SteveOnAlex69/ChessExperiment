@@ -9,12 +9,14 @@ var chessboard: Array = "RNBQKBNRPPPPPPPP................................ppppppp
 var previous_chessboard: Array = chessboard.duplicate(true);
 var white_castle: Array;
 var black_castle: Array;
+var is_white_move: bool;
 
 var most_recent_move: Array[int];
 
 func _init():
 	white_castle.append(1); white_castle.append(1);
 	black_castle.append(1); black_castle.append(1);
+	is_white_move = true;
 
 func get_cell(cell:int):
 	return chessboard[cell];
@@ -24,9 +26,11 @@ func set_cell(cell:int, val:String):
 	
 func update_history():
 	previous_chessboard = chessboard.duplicate(true);
+	is_white_move = !is_white_move;
 	
-func normal_move(cell1: int, cell2: int):
-	update_history();
+func normal_move(cell1: int, cell2: int, is_actual_move: bool = true):
+	if is_actual_move:
+		update_history();
 	var pos = Utility.int_to_cell_vector(cell1);
 	if chessboard[cell1].to_lower() == 'r':
 		if pos.x == 0:
@@ -54,7 +58,7 @@ func normal_move(cell1: int, cell2: int):
 
 func castle(cell1: int, cell2: int):
 	update_history();
-	normal_move(cell1, cell2);
+	normal_move(cell1, cell2, false);
 	var coord1 = Utility.int_to_cell_vector(cell1);
 	var coord2 = Utility.int_to_cell_vector(cell2);
 	if coord1.y > coord2.y:
@@ -62,27 +66,28 @@ func castle(cell1: int, cell2: int):
 		var desired_coord = Vector2(coord2.x, coord2.y + 1);
 		var cell3 = Utility.vector_to_cell_index(rook_coord);
 		var cell4 = Utility.vector_to_cell_index(desired_coord);
-		normal_move(cell3, cell4);
+		normal_move(cell3, cell4, false);
 	else:
 		var rook_coord = Vector2(coord2.x, 7);
 		var desired_coord = Vector2(coord2.x, coord2.y - 1);
 		var cell3 = Utility.vector_to_cell_index(rook_coord);
 		var cell4 = Utility.vector_to_cell_index(desired_coord);
-		normal_move(cell3, cell4);
+		normal_move(cell3, cell4, false);
 		
 
 func en_passant(cell1: int, cell2: int):
 	update_history();
-	normal_move(cell1, cell2);
+	normal_move(cell1, cell2, false);
 	var coord1 = Utility.int_to_cell_vector(cell1);
 	var coord2 = Utility.int_to_cell_vector(cell2);
 	var coord3 = Vector2(coord1.x, coord2.y);
 	
 	var cell3 = Utility.vector_to_cell_index(coord3);
-	normal_move(cell3, cell3);
+	normal_move(cell3, cell3, false);
 	
 
 func promote(cell: int, s: String):
+	is_white_move = !is_white_move;
 	chessboard[cell] = s;
 	
 func rollback():

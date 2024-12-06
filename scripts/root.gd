@@ -1,6 +1,7 @@
 extends Node2D
 
 var chessboard = ChessBoard.new();
+const ALLOWED_DISTANCE = 35;
 
 var chess_piece = preload("res://scene/pieces.tscn");
 var hint_overlay_scene = preload("res://scene/hint_overlay.tscn");
@@ -29,7 +30,7 @@ func vector_to_pos(p: Vector2):
 	
 func get_cell(mouse_pos: Vector2):
 	for i in chess_piece_instance_list:
-		if (Utility.chebyshev_distance(i.position, mouse_pos) < 32):
+		if (Utility.chebyshev_distance(i.position, mouse_pos) < ALLOWED_DISTANCE):
 			return i.current_cell;
 	return "None";
 	
@@ -159,7 +160,7 @@ func handle_enpassant(cell1: int, cell2: int):
 	
 func handle_promotion(cell1: int, cell2: int):
 	var is_white = Utility.is_upper_case(chessboard.get_cell(cell1));
-	chessboard.normal_move(cell1, cell2);
+	chessboard.normal_move(cell1, cell2, false);
 	renderBoard(chessboard);
 	update_selected_cell("");
 	
@@ -185,7 +186,6 @@ func create_promotion_pop_up(is_white: bool, v: Vector2):
 		if is_white:
 			arr[i] = arr[i].to_upper();
 		var piece_instance = chess_piece.instantiate();
-		
 		promotion_pieces.append(piece_instance);
 		add_child(piece_instance);
 		
@@ -203,7 +203,6 @@ func promotion_call(cell: int, s: String):
 		chessboard.rollback();
 	else:
 		play_sound("Promote");
-		var coord = Utility.int_to_cell_vector(cell);
 		chessboard.promote(cell, s);
 	renderBoard(chessboard);
 	update_selected_cell("");
@@ -220,7 +219,8 @@ func handling_mouse_press(mouse_pos: Vector2):
 	if (cur_cell != "None"):  # if clicked inside the chessboard
 		if (selected_cell == ""): # if not selecting any cell, select the cell
 			var cell = Utility.cell_notation_to_int(cur_cell);
-			if chessboard.get_cell(cell) != ".":
+			var val = chessboard.get_cell(cell);
+			if (val != ".") && (Utility.is_upper_case(val) == chessboard.is_white_move):
 				update_selected_cell(cur_cell);
 		else:
 			var cell1 = Utility.cell_notation_to_int(selected_cell);
@@ -244,6 +244,12 @@ func handling_mouse_press(mouse_pos: Vector2):
 						pass;
 	else: #cancel selected cell if clicked outside the chessboard
 		update_selected_cell("");
+		
+func update_label(is_white_move:bool):
+	if is_white_move:
+		$IsWhiteMove.text = "White Turn";
+	else:
+		$IsWhiteMove.text = "Black Turn";
 
 func _input(event):
 	if event is InputEventMouseButton and event.pressed:
@@ -251,11 +257,12 @@ func _input(event):
 		if promotion_pieces.size() == 4: # are opening promotion box
 			var chosen_piece = "None";
 			for i in promotion_pieces:
-				if (Utility.chebyshev_distance(i.position, mouse_pos) < 32):
+				if (Utility.chebyshev_distance(i.position, mouse_pos) < ALLOWED_DISTANCE):
 					chosen_piece = i.current_piece;
 			promotion_call(chessboard.most_recent_move[1], chosen_piece);
 		else:
 			handling_mouse_press(mouse_pos);
+		update_label(chessboard.is_white_move);
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
@@ -265,4 +272,3 @@ func _on_flip_board_button_down():
 	flipped_board = !flipped_board;
 	initialRender();
 	renderBoard(chessboard);
-	
