@@ -102,6 +102,9 @@ func check_king_move(coord1: Vector2, coord2: Vector2):
 	if (coord1.x == coord2.x) && (Utility.chebyshev_distance(coord1, coord2) == 2):
 		var is_white = Utility.is_upper_case(chessboard[Utility.vector_to_cell_index(coord1)]);
 		if coord1.y > coord2.y: #castle to the 1st file
+			for i in range(coord2.y, coord1.y + 1):
+				if check_tile_attacked(Utility.vector_to_cell_index(Vector2(coord2.x, i)), !is_white_move):
+					return MOVE.Invalid;
 			if is_white:
 				if (white_castle[0] == 1) && check_rook_move(coord1, Vector2(coord1.x, 0)):
 					return MOVE.Castle;
@@ -109,6 +112,9 @@ func check_king_move(coord1: Vector2, coord2: Vector2):
 				if (black_castle[0] == 1) && check_rook_move(coord1, Vector2(coord1.x, 0)):
 					return MOVE.Castle;
 		else: #castle to the 8th file
+			for i in range(coord1.y, coord2.y + 1):
+				if check_tile_attacked(Utility.vector_to_cell_index(Vector2(coord2.x, i)), !is_white_move):
+					return MOVE.Invalid;
 			if is_white:
 				if (white_castle[1] == 1) && check_rook_move(coord1, Vector2(coord1.x, 7)):
 					return MOVE.Castle;
@@ -248,13 +254,16 @@ func validate_move(cell1: int, cell2: int): #validate_move, but perform check ch
 	tmp_board.is_white_move = is_white_move;
 	tmp_board.chessboard = chessboard.duplicate(true);
 	
-	match ans:
-		MOVE.Normal:
-			tmp_board.set_cell(cell2, tmp_board.get_cell(cell1));
-			tmp_board.set_cell(cell1, ".");
-			if (tmp_board.in_check(is_white_move)):
-				return MOVE.Invalid;
-			return MOVE.Normal;
+	if (ans == MOVE.Normal) || (ans == MOVE.Promote):
+		tmp_board.normal_move(cell1, cell2);
+		if (tmp_board.in_check(is_white_move)):
+			return MOVE.Invalid;
+		return MOVE.Normal;
+	if (ans == MOVE.EnPassant):
+		tmp_board.en_passant(cell1, cell2);
+		if (tmp_board.in_check(is_white_move)):
+			return MOVE.Invalid;
+		return MOVE.EnPassant;
 	return ans;
 	
 
