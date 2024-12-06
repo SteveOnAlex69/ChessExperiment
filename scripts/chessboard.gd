@@ -200,8 +200,20 @@ func check_pawn_move(coord1: Vector2, coord2: Vector2):
 				return MOVE.EnPassant;
 	return MOVE.Invalid;
 	
+func check_tile_attacked(cell: int, opponent_side: bool):
+	for i in range(0, 64):
+		if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == opponent_side):
+			if (validate_move_skeleton(i, cell)): 
+				return true;
+	return false;
+	
+func in_check(current_side: bool):
+	var cur = "K";
+	if (current_side == false):
+		cur = "k";
+	return check_tile_attacked(chessboard.find(cur), !current_side);
 
-func validate_move(cell1: int, cell2: int):
+func validate_move_skeleton(cell1: int, cell2: int):
 	var cur = chessboard[cell1].to_lower();
 	var coord1 = Utility.int_to_cell_vector(cell1);
 	var coord2 = Utility.int_to_cell_vector(cell2);
@@ -225,14 +237,32 @@ func validate_move(cell1: int, cell2: int):
 			if (ans == MOVE.Normal) && (coord2.x == 0 || coord2.x == 7):
 				ans = MOVE.Promote;
 			return ans;
-			
 	return MOVE.Normal;
+	
+
+func validate_move(cell1: int, cell2: int): #validate_move, but perform check check
+	var ans = validate_move_skeleton(cell1, cell2);
+	if ans == MOVE.Invalid: #break early to save computation power
+		return MOVE.Invalid;
+	var tmp_board: ChessBoard = ChessBoard.new();
+	tmp_board.is_white_move = is_white_move;
+	tmp_board.chessboard = chessboard.duplicate(true);
+	
+	match ans:
+		MOVE.Normal:
+			tmp_board.set_cell(cell2, tmp_board.get_cell(cell1));
+			tmp_board.set_cell(cell1, ".");
+			if (tmp_board.in_check(is_white_move)):
+				return MOVE.Invalid;
+			return MOVE.Normal;
+	return ans;
 	
 
 func generate_move_from_cell(cell1: int):
 	var move_list: Array;
 	for i in range(0, 8):
 		for j in range(0, 8):
+			print(Utility.vector_to_cell_index(Vector2(i, j)));
 			if (validate_move(cell1, Utility.vector_to_cell_index(Vector2(i, j))) != MOVE.Invalid):
 				move_list.append(Vector2(i, j));
 	return move_list;
