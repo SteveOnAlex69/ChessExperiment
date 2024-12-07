@@ -8,31 +8,23 @@ var current_piece = "";
 
 func set_type(type:String):
 	current_piece = type;
-	match type:
+	if (Utility.is_upper_case(type)) :
+		piece_type = 6;
+	else :
+		piece_type = 0;
+	match type.to_lower():
 		'k':
-			piece_type = 0;
+			piece_type += 0;
 		'q':
-			piece_type = 1;
+			piece_type += 1;
 		'b':
-			piece_type = 2;
+			piece_type += 2;
 		'n':
-			piece_type = 3;
+			piece_type += 3;
 		'r':
-			piece_type = 4;
+			piece_type += 4;
 		'p':
-			piece_type = 5;
-		'K':
-			piece_type = 6;
-		'Q':
-			piece_type = 7;
-		'B':
-			piece_type = 8;
-		'N':
-			piece_type = 9;
-		'R':
-			piece_type = 10;
-		'P':
-			piece_type = 11;
+			piece_type += 5;
 		_: 
 			piece_type = 12;
 			

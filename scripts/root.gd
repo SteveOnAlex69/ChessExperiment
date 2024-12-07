@@ -16,7 +16,7 @@ var selected_cell = "";
 
 var flipped_board = false;
 var selected_overlay = selected_overlay_scene.instantiate();
-var promotion_overlay = selected_overlay_scene.instantiate();
+var dark_overlay = selected_overlay_scene.instantiate();
 var promotion_gui = promotion_gui_scene.instantiate();
 var promotion_pieces: Array;
 
@@ -70,9 +70,9 @@ func initializeOverlay():
 	add_child(selected_overlay); 
 	selected_overlay.all_in_one(false, Vector2(spacing, spacing), 0.5, 0);
 	
-	add_child(promotion_overlay);
-	promotion_overlay.all_in_one(false, v, 0.3, 2);
-	promotion_overlay.position = Vector2(v.x / 2, v.y / 2);
+	add_child(dark_overlay);
+	dark_overlay.all_in_one(false, v, 0.3, 2);
+	dark_overlay.position = Vector2(v.x / 2, v.y / 2);
 	
 	add_child(promotion_gui);
 	promotion_gui.all_in_one(false, Vector2(spacing, spacing * 4), 1, 3);
@@ -88,22 +88,21 @@ func relocateOverlay(v: Vector2):
 
 # <------------------------- Rendering chessboard end  ------------------------->
 
-# Called when the node enters the scene tree for the first time.
-func _ready():
-	initialRender();
-	renderBoard(chessboard);
-	initializeOverlay();
 
 func play_sound(arg:String):
 	match arg:
 		"Move":
-			$PieceMoveSound.play();
+			$SoundPack/PieceMoveSound.play();
 		"Capture":
-			$PieceCaptureSound.play();
+			$SoundPack/PieceCaptureSound.play();
 		"Castle":
-			$CastlingSound.play();
+			$SoundPack/CastlingSound.play();
 		"Promote":
-			$PromoteSound.play();
+			$SoundPack/PromoteSound.play();
+		"NewGame":
+			$SoundPack/NewGameSound.play();
+		"EndGame":
+			$SoundPack/EndGameSound.play();
 		_:
 			print("What?");
 			
@@ -169,7 +168,7 @@ func handle_promotion(cell1: int, cell2: int):
 
 func create_promotion_pop_up(is_white: bool, v: Vector2):
 	clear_hint_list();
-	promotion_overlay.update_display(true);
+	dark_overlay.update_display(true);
 	promotion_gui.update_display(true);
 	
 	v = vector_to_pos(v);
@@ -207,12 +206,17 @@ func promotion_call(cell: int, s: String):
 	renderBoard(chessboard);
 	update_selected_cell("");
 	
-	promotion_overlay.update_display(false);
+	dark_overlay.update_display(false);
 	promotion_gui.update_display(false);
 	for i in promotion_pieces:
 		remove_child(i);
 	promotion_pieces.clear();
 	
+func handle_end_game(msg: String):
+	play_sound("EndGame");
+	chessboard.end_game();
+	$GameState.text = msg;
+	dark_overlay.update_display(true);
 	
 func handling_mouse_press(mouse_pos: Vector2):
 	var cur_cell = get_cell(mouse_pos);
@@ -245,14 +249,27 @@ func handling_mouse_press(mouse_pos: Vector2):
 	else: #cancel selected cell if clicked outside the chessboard
 		update_selected_cell("");
 		
+	if (promotion_pieces.size() == 0) && (selected_cell == ""):
+		var current_side: int = chessboard.is_white_move;
+		if chessboard.checkmated(current_side):
+			if (current_side == 1):
+				handle_end_game("Game Over! Black Win!");
+			else:
+				handle_end_game("Game Over! White Win!");
+		else:
+			if chessboard.stalemated(current_side):	
+				handle_end_game("Game Over! Draw!");
+		
 func update_label(is_white_move:bool):
 	if is_white_move:
-		$IsWhiteMove.text = "White Turn";
+		$GameState.text = "White Turn";
 	else:
-		$IsWhiteMove.text = "Black Turn";
+		$GameState.text = "Black Turn";
 
 func _input(event):
 	if event is InputEventMouseButton and event.pressed:
+		if chessboard.is_continuing() == false:
+			return;
 		var mouse_pos = get_viewport().get_mouse_position();
 		if promotion_pieces.size() == 4: # are opening promotion box
 			var chosen_piece = "None";
@@ -262,7 +279,24 @@ func _input(event):
 			promotion_call(chessboard.most_recent_move[1], chosen_piece);
 		else:
 			handling_mouse_press(mouse_pos);
-		update_label(chessboard.is_white_move);
+			
+		if (chessboard.is_continuing()):
+			update_label(chessboard.is_white_move);
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready():
+	initialRender();
+	renderBoard(chessboard);
+	initializeOverlay();
+	
+	dark_overlay.update_display(true);
+	
+	$FlipBoard.z_index = 10;
+	$NewGame.z_index = 10;
+	$GameState.z_index = 10;
+	
+
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
@@ -272,3 +306,11 @@ func _on_flip_board_button_down():
 	flipped_board = !flipped_board;
 	initialRender();
 	renderBoard(chessboard);
+
+func _on_new_game_button_down():
+	chessboard.start_game();
+	chessboard.reset_board();
+	initialRender();
+	renderBoard(chessboard);
+	play_sound("NewGame");
+	dark_overlay.update_display(false);

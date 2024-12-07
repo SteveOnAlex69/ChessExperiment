@@ -10,6 +10,7 @@ var previous_chessboard: Array = chessboard.duplicate(true);
 var white_castle: Array;
 var black_castle: Array;
 var is_white_move: bool;
+var game_continuing: bool = false;
 
 var most_recent_move: Array[int];
 
@@ -17,6 +18,23 @@ func _init():
 	white_castle.append(1); white_castle.append(1);
 	black_castle.append(1); black_castle.append(1);
 	is_white_move = true;
+
+func is_continuing():
+	return game_continuing;
+	
+func start_game():
+	game_continuing = true;
+	
+func end_game():
+	game_continuing = false;
+	
+func reset_board():
+	chessboard = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
+	previous_chessboard = chessboard.duplicate(true);
+	white_castle[0] = 1; white_castle[1] = 1;
+	black_castle[0] = 1; black_castle[1] = 1;
+	is_white_move = true;
+	most_recent_move.clear();
 
 func get_cell(cell:int):
 	return chessboard[cell];
@@ -28,11 +46,9 @@ func update_history():
 	previous_chessboard = chessboard.duplicate(true);
 	is_white_move = !is_white_move;
 	
-func normal_move(cell1: int, cell2: int, is_actual_move: bool = true):
-	if is_actual_move:
-		update_history();
-	var pos = Utility.int_to_cell_vector(cell1);
-	if chessboard[cell1].to_lower() == 'r':
+func disable_castling_rook(cell: int):
+	var pos = Utility.int_to_cell_vector(cell);
+	if (chessboard[cell].to_lower() == 'r'):
 		if pos.x == 0:
 			if pos.y == 0:
 				white_castle[0] = 0;
@@ -43,6 +59,13 @@ func normal_move(cell1: int, cell2: int, is_actual_move: bool = true):
 				black_castle[0] = 0;
 			if pos.y == 7:
 				black_castle[1] = 0;
+	
+func normal_move(cell1: int, cell2: int, is_actual_move: bool = true):
+	if is_actual_move:
+		update_history();
+	disable_castling_rook(cell1); 
+	disable_castling_rook(cell2);
+	
 	if chessboard[cell1].to_lower() == 'k':
 		if chessboard[cell1] == 'K':
 			white_castle[0] = 0;
@@ -50,7 +73,6 @@ func normal_move(cell1: int, cell2: int, is_actual_move: bool = true):
 		else:
 			black_castle[0] = 0;
 			black_castle[1] = 0;
-			
 	chessboard[cell2] = chessboard[cell1];
 	chessboard[cell1] = ".";
 	most_recent_move = [cell1, cell2];
@@ -220,12 +242,14 @@ func in_check(current_side: bool):
 	return check_tile_attacked(chessboard.find(cur), !current_side);
 
 func validate_move_skeleton(cell1: int, cell2: int):
+	if chessboard[cell1] == ".":
+		return MOVE.Invalid;
+	if (chessboard[cell2] != ".") && (Utility.is_upper_case(chessboard[cell1]) == Utility.is_upper_case(chessboard[cell2])):
+		return MOVE.Invalid;
+	
 	var cur = chessboard[cell1].to_lower();
 	var coord1 = Utility.int_to_cell_vector(cell1);
 	var coord2 = Utility.int_to_cell_vector(cell2);
-	
-	if (chessboard[cell2] != ".") && (Utility.is_upper_case(chessboard[cell1]) == Utility.is_upper_case(chessboard[cell2])):
-		return MOVE.Invalid;
 	
 	match cur:
 		"k":
@@ -258,7 +282,7 @@ func validate_move(cell1: int, cell2: int): #validate_move, but perform check ch
 		tmp_board.normal_move(cell1, cell2);
 		if (tmp_board.in_check(is_white_move)):
 			return MOVE.Invalid;
-		return MOVE.Normal;
+		return ans;
 	if (ans == MOVE.EnPassant):
 		tmp_board.en_passant(cell1, cell2);
 		if (tmp_board.in_check(is_white_move)):
@@ -267,16 +291,42 @@ func validate_move(cell1: int, cell2: int): #validate_move, but perform check ch
 	return ans;
 	
 
-func generate_move_from_cell(cell1: int):
+func find_valid_move_from_cell(cell1: int) -> bool:
+	for i in range(0, 8):
+		for j in range(0, 8):
+			if (validate_move(cell1, Utility.vector_to_cell_index(Vector2(i, j))) != MOVE.Invalid):
+				return true;
+	return false;
+
+func generate_move_from_cell(cell1: int) -> Array:
 	var move_list: Array;
 	for i in range(0, 8):
 		for j in range(0, 8):
-			print(Utility.vector_to_cell_index(Vector2(i, j)));
 			if (validate_move(cell1, Utility.vector_to_cell_index(Vector2(i, j))) != MOVE.Invalid):
 				move_list.append(Vector2(i, j));
 	return move_list;
 
 # <-------- Move Validator End -------->
+
+# <-------- Game State Messing Start -------->
+
+func checkmated(current_side: int):
+	if in_check(current_side):
+		for i in range(0, 64): 
+			if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == bool(current_side)) && find_valid_move_from_cell(i):
+				return false;
+		return true;
+	return false;
+	
+func stalemated(current_side: int):
+	if !in_check(current_side):
+		for i in range(0, 64): 
+			if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == bool(current_side)) && find_valid_move_from_cell(i):
+				return false;
+		return true;
+	return false;
+
+# <-------- Game State Messing End -------->
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
