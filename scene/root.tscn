@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://dvjr0rf6ciart"]
+[gd_scene load_steps=14 format=3 uid="uid://dvjr0rf6ciart"]
 
 [ext_resource type="Script" path="res://scripts/root.gd" id="1_wafjg"]
 [ext_resource type="Texture2D" uid="uid://c8171s1yn26la" path="res://resource_packs/image/chess_board.png" id="2_e5n4u"]
@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" uid="uid://crejthgjofaqd" path="res://scene/promotion_gui.tscn" id="10_efjbo"]
 [ext_resource type="AudioStream" uid="uid://qjf0jripaq4k" path="res://resource_packs/sound/game_start.mp3" id="11_gukba"]
 [ext_resource type="AudioStream" uid="uid://cpq12k7chx13m" path="res://resource_packs/sound/game_end.mp3" id="11_sot5y"]
+[ext_resource type="AudioStream" uid="uid://idufyi7xgkb4" path="res://resource_packs/sound/check.mp3" id="13_ff6up"]
 
 [node name="Root" type="Node2D"]
 script = ExtResource("1_wafjg")
@@ -32,29 +33,7 @@ position = Vector2(71.7933, 65.0383)
 [node name="HintOverlay" parent="." instance=ExtResource("7_susdb")]
 visible = false
 
-[node name="FlipBoard" type="Button" parent="."]
-offset_left = 118.0
-offset_top = 184.0
-offset_right = 205.0
-offset_bottom = 215.0
-text = "Flip Board"
-
-[node name="NewGame" type="Button" parent="."]
-offset_left = 110.0
-offset_top = 240.0
-offset_right = 212.0
-offset_bottom = 271.0
-text = "New Game"
-
 [node name="PromotionGUI" parent="." instance=ExtResource("10_efjbo")]
-
-[node name="GameState" type="Label" parent="."]
-offset_left = 3.0
-offset_top = 134.0
-offset_right = 313.0
-offset_bottom = 160.0
-text = "Press New Game to Start"
-horizontal_alignment = 1
 
 [node name="SoundPack" type="Node2D" parent="."]
 
@@ -82,5 +61,47 @@ volume_db = 15.0
 stream = ExtResource("11_sot5y")
 volume_db = 15.0
 
-[connection signal="button_down" from="FlipBoard" to="." method="_on_flip_board_button_down"]
-[connection signal="button_down" from="NewGame" to="." method="_on_new_game_button_down"]
+[node name="CheckSound" type="AudioStreamPlayer2D" parent="SoundPack"]
+stream = ExtResource("13_ff6up")
+volume_db = 15.0
+
+[node name="CheckSound2" type="AudioStreamPlayer2D" parent="SoundPack"]
+stream = ExtResource("13_ff6up")
+volume_db = 15.0
+
+[node name="Buttons" type="Node2D" parent="."]
+
+[node name="FlipBoard" type="Button" parent="Buttons"]
+offset_left = 118.0
+offset_top = 184.0
+offset_right = 205.0
+offset_bottom = 215.0
+text = "Flip Board"
+
+[node name="NewGame" type="Button" parent="Buttons"]
+offset_left = 110.0
+offset_top = 240.0
+offset_right = 212.0
+offset_bottom = 271.0
+text = "New Game"
+
+[node name="UndoMove" type="Button" parent="Buttons"]
+offset_left = 112.0
+offset_top = 292.0
+offset_right = 209.0
+offset_bottom = 323.0
+text = "Undo Move"
+
+[node name="Infos" type="Node2D" parent="."]
+
+[node name="GameState" type="Label" parent="Infos"]
+offset_left = 3.0
+offset_top = 134.0
+offset_right = 313.0
+offset_bottom = 160.0
+text = "Press New Game to Start"
+horizontal_alignment = 1
+
+[connection signal="button_down" from="Buttons/FlipBoard" to="." method="_on_flip_board_button_down"]
+[connection signal="button_down" from="Buttons/NewGame" to="." method="_on_new_game_button_down"]
+[connection signal="button_down" from="Buttons/UndoMove" to="." method="_on_undo_move_button_down"]

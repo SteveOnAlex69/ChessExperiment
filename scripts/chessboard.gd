@@ -11,7 +11,7 @@ var white_castle: Array;
 var black_castle: Array;
 var is_white_move: bool;
 var game_continuing: bool = false;
-var board_history: Array;
+var board_history_hash: Array;
 var fifty_move_counter: int;
 
 var most_recent_move: Array[int];
@@ -36,7 +36,7 @@ func reset_board():
 	is_white_move = true;
 	most_recent_move.clear();
 	fifty_move_counter = 100;
-	board_history.clear();
+	board_history_hash.clear();
 	
 	white_castle[0] = 1; white_castle[1] = 1;
 	black_castle[0] = 1; black_castle[1] = 1;
@@ -66,10 +66,10 @@ func update_history(fifty_move_reset: bool = false):
 	is_white_move = !is_white_move;
 	if fifty_move_reset:
 		fifty_move_counter = 100;
-		board_history.clear();
+		board_history_hash.clear();
 	else:
 		fifty_move_counter -= 1;
-		board_history.append(hash(chessboard));
+		board_history_hash.append(hash(chessboard));
 	
 func disable_castling_rook(cell: int):
 	var pos = Utility.int_to_cell_vector(cell);
@@ -151,25 +151,23 @@ func check_king_move(coord1: Vector2, coord2: Vector2, allow_special: bool = tru
 	if (coord1.x == coord2.x) && (Utility.chebyshev_distance(coord1, coord2) == 2):
 		var is_white = Utility.is_upper_case(chessboard[Utility.vector_to_cell_index(coord1)]);
 		if coord1.y > coord2.y: #castle to the 1st file
-			for i in range(coord2.y, coord1.y + 1):
-				if check_tile_attacked(Utility.vector_to_cell_index(Vector2(coord2.x, i)), !is_white_move):
-					return MOVE.Invalid;
-			if is_white:
-				if (white_castle[0] == 1) && check_rook_move(coord1, Vector2(coord1.x, 0)):
-					return MOVE.Castle;
-			else:
-				if (black_castle[0] == 1) && check_rook_move(coord1, Vector2(coord1.x, 0)):
-					return MOVE.Castle;
+			var check_castling = white_castle[0];
+			if (!is_white): 
+				check_castling = black_castle[0];
+			if (check_castling == 1) && check_rook_move(coord1, Vector2(coord1.x, 0)):
+				for i in range(coord2.y, coord1.y + 1):
+					if check_tile_attacked(Utility.vector_to_cell_index(Vector2(coord2.x, i)), !is_white_move):
+						return MOVE.Invalid;
+				return MOVE.Castle;
 		else: #castle to the 8th file
-			for i in range(coord1.y, coord2.y + 1):
-				if check_tile_attacked(Utility.vector_to_cell_index(Vector2(coord2.x, i)), !is_white_move):
-					return MOVE.Invalid;
-			if is_white:
-				if (white_castle[1] == 1) && check_rook_move(coord1, Vector2(coord1.x, 7)):
-					return MOVE.Castle;
-			else:
-				if (black_castle[1] == 1) && check_rook_move(coord1, Vector2(coord1.x, 7)):
-					return MOVE.Castle;
+			var check_castling = white_castle[0];
+			if (!is_white): 
+				check_castling = black_castle[0];
+			if (check_castling == 1) && check_rook_move(coord1, Vector2(coord1.x, 7)):
+				for i in range(coord1.y, coord2.y + 1):
+					if check_tile_attacked(Utility.vector_to_cell_index(Vector2(coord2.x, i)), !is_white_move):
+						return MOVE.Invalid;
+				return MOVE.Castle;
 	return MOVE.Invalid;
 	
 
@@ -180,51 +178,41 @@ func check_knight_move(coord1: Vector2, coord2: Vector2):
 	
 	
 func check_bishop_move(coord1: Vector2, coord2: Vector2):
+	if (coord1 == coord2):
+		return MOVE.Normal;
 	if Utility.is_bishop_distance(coord1, coord2):
-		if (coord1.x - coord1.y) == (coord2.x - coord2.y): # main diagonal
-			var offset = coord1.y - coord1.x;
-			var l = min(coord1.x, coord2.x);
-			var r = max(coord1.x, coord2.x);
-			
-			for i in range(l+1, r):
-				var cur_cell = Utility.vector_to_cell_index(Vector2(i, i + offset));
-				if chessboard[cur_cell] != ".":
+		var diff = Vector2(coord2.x - coord1.x, coord2.y - coord1.y);
+		var cardinality = abs(diff.x);
+		diff.x /= cardinality; diff.y /= cardinality;
+		var coord = coord1;
+		while(coord != coord2):
+			if coord != coord1:
+				var cur_cell = Utility.vector_to_cell_index(coord);
+				if (chessboard[cur_cell] != "."):
 					return MOVE.Invalid;
-		else:
-			var offset = coord1.x + coord1.y;
-			var l = min(coord1.x, coord2.x);
-			var r = max(coord1.x, coord2.x);
-			
-			for i in range(l+1, r):
-				var cur_cell = Utility.vector_to_cell_index(Vector2(i, offset - i));
-				if chessboard[cur_cell] != ".":
-					return MOVE.Invalid;
+			coord += diff;
 		return MOVE.Normal;
 	return MOVE.Invalid;
 		
 
 func check_rook_move(coord1: Vector2, coord2: Vector2):
+	if (coord1 == coord2):
+		return MOVE.Normal;
 	if Utility.is_rook_distance(coord1, coord2):
-		if coord1.x == coord2.x:
-			var l = min(coord1.y, coord2.y);
-			var r = max(coord1.y, coord2.y);
-			
-			for i in range(l+1, r):
-				var cur_cell = Utility.vector_to_cell_index(Vector2(coord1.x, i));
-				if chessboard[cur_cell] != ".":
+		var diff = Vector2(coord2.x - coord1.x, coord2.y - coord1.y);
+		var cardinality = abs(diff.x + diff.y);
+		diff.x /= cardinality; diff.y /= cardinality;
+		var coord = coord1;
+		while(coord != coord2):
+			if coord != coord1:
+				var cur_cell = Utility.vector_to_cell_index(coord);
+				if (chessboard[cur_cell] != "."):
 					return MOVE.Invalid;
-		else:
-			var l = min(coord1.x, coord2.x);
-			var r = max(coord1.x, coord2.x);
-			for i in range(l+1, r):
-				var cur_cell = Utility.vector_to_cell_index(Vector2(i, coord1.y));
-				if chessboard[cur_cell] != ".":
-					return MOVE.Invalid;
+			coord += diff;
 		return MOVE.Normal;
 	return MOVE.Invalid;
 	
 func check_queen_move(coord1: Vector2, coord2: Vector2):
-	# queen move rule is the same as queen capture rule, so nothing to edit
 	if check_bishop_move(coord1, coord2) || check_rook_move(coord1, coord2):
 		return MOVE.Normal;
 	return MOVE.Invalid;
@@ -233,21 +221,22 @@ func check_pawn_move(coord1: Vector2, coord2: Vector2, allow_special:bool = true
 	var cell1:int = Utility.vector_to_cell_index(coord1);
 	var cell2:int = Utility.vector_to_cell_index(coord2);
 	var is_white = Utility.is_upper_case(chessboard[cell1]);
+	# Move
 	if chessboard[cell2] == "." && Utility.is_pawn_distance(coord1, coord2) && check_rook_move(coord1, coord2): 
 		if ((coord1.x < coord2.x) != is_white):
 			return MOVE.Invalid;
-		if is_white:
-			if (coord1.x != 1) && (Utility.manhattan_distance(coord1, coord2) == 2):
-				return MOVE.Invalid;
-		else:
-			if (coord1.x != 6) && (Utility.manhattan_distance(coord1, coord2) == 2):
-				return MOVE.Invalid;
+		var init_pos = 1;
+		if (!is_white):
+			init_pos = 6;
+		if (coord1.x != init_pos) && (Utility.manhattan_distance(coord1, coord2) == 2):
+			return MOVE.Invalid;
 		return MOVE.Normal;
+	# Capture
 	if chessboard[cell2] != "." && check_bishop_move(coord1, coord2) && (Utility.chebyshev_distance(coord1, coord2) <= 1): 
 		if ((coord1.x < coord2.x) != is_white):
 			return MOVE.Invalid;
 		return MOVE.Normal;
-	
+	# En passant
 	if (!allow_special):
 		return MOVE.Invalid;
 	if (most_recent_move.size() == 2) && (chessboard[most_recent_move[1]].to_lower() == "p") && (chessboard[most_recent_move[1]] != chessboard[cell1]):
@@ -259,10 +248,12 @@ func check_pawn_move(coord1: Vector2, coord2: Vector2, allow_special:bool = true
 	return MOVE.Invalid;
 	
 func check_tile_attacked(cell: int, opponent_side: bool):
+	#Safe and simple, but slow
 	for i in range(0, 64):
 		if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == opponent_side):
 			if (validate_move_skeleton(i, cell, 0)): 
 				return true;
+	
 	return false;
 	
 func in_check(current_side: bool):
@@ -336,6 +327,24 @@ func generate_move_from_cell(cell1: int) -> Array:
 			if (validate_move(cell1, Utility.vector_to_cell_index(Vector2(i, j))) != MOVE.Invalid):
 				move_list.append(Vector2(i, j));
 	return move_list;
+	
+
+func generate_move_type_from_cell(cell1: int) -> Array:
+	var move_list: Array;
+	for i in range(0, 64):
+		var cur = validate_move(cell1, i);
+		if (cur != MOVE.Invalid):
+			move_list.append([i, cur]);
+	return move_list;
+	
+func generate_move() -> Array:
+	var move_list: Array;
+	for i in range(0, 64):
+		if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == is_white_move):
+			var current_list: Array = generate_move_type_from_cell(i);
+			for k in current_list:
+				move_list.append([i, k[0], k[1]]);
+	return move_list;
 
 # <-------- Move Validator End -------->
 
@@ -381,7 +390,7 @@ func stupid_draw_check() -> String:
 		return fifty_move_rule;
 		
 	var cnt= 0; var cur_hash = hash(chessboard.duplicate(true));
-	for i in board_history:
+	for i in board_history_hash:
 		if (i == cur_hash):
 			cnt += 1;
 			

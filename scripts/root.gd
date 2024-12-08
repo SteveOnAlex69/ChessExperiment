@@ -16,6 +16,7 @@ var selected_cell = "";
 
 var flipped_board = false;
 var selected_overlay = selected_overlay_scene.instantiate();
+var selected_promotion_overlay = selected_overlay_scene.instantiate();
 var dark_overlay = selected_overlay_scene.instantiate();
 var promotion_gui = promotion_gui_scene.instantiate();
 var promotion_pieces: Array;
@@ -70,6 +71,9 @@ func initializeOverlay():
 	add_child(selected_overlay); 
 	selected_overlay.all_in_one(false, Vector2(spacing, spacing), 0.5, 0);
 	
+	add_child(selected_promotion_overlay); 
+	selected_promotion_overlay.all_in_one(false, Vector2(spacing, spacing), 0.2, 10);
+	
 	add_child(dark_overlay);
 	dark_overlay.all_in_one(false, v, 0.3, 2);
 	dark_overlay.position = Vector2(v.x / 2, v.y / 2);
@@ -103,6 +107,8 @@ func play_sound(arg:String):
 			$SoundPack/NewGameSound.play();
 		"EndGame":
 			$SoundPack/EndGameSound.play();
+		"Check":
+			$SoundPack/CheckSound.play();
 		_:
 			print("Invalid Sound");
 			
@@ -133,29 +139,42 @@ func update_selected_cell(cur_cell: String):
 		var move_list = chessboard.generate_move_from_cell(Utility.cell_notation_to_int(selected_cell));
 		update_hint_list(move_list);
 		
+func handle_check() -> bool:
+	var cur = chessboard.is_white_move;
+	if (chessboard.in_check(cur)):
+		play_sound("Check");
+		return true;
+	return false;
 	
 func handle_normal_move(cell1: int, cell2: int):
-	if (chess_piece_instance_list[cell2].current_piece != ".") :
-		play_sound("Capture");
-	else: 
-		play_sound("Move");
-		
+	var is_capture = chess_piece_instance_list[cell2].current_piece != ".";
+	
 	chessboard.normal_move(cell1, cell2);
 	renderBoard(chessboard);
 	update_selected_cell("");
 	
+	if !handle_check():
+		if is_capture :
+			play_sound("Capture");
+		else: 
+			play_sound("Move");
+	
 func handle_castle(cell1: int, cell2: int):
-	play_sound("Castle");
 	chessboard.castle(cell1, cell2);
 	renderBoard(chessboard);
 	update_selected_cell("");
 	
+	if !handle_check():
+		play_sound("Castle");
+	
 func handle_enpassant(cell1: int, cell2: int):
-	play_sound("Capture");
 	chessboard.en_passant(cell1, cell2);
 	
 	renderBoard(chessboard);
 	update_selected_cell("");
+	
+	if !handle_check():
+		play_sound("Capture");
 	
 func handle_promotion(cell1: int, cell2: int):
 	var is_white = Utility.is_upper_case(chessboard.get_cell(cell1));
@@ -201,8 +220,9 @@ func promotion_call(cell: int, s: String):
 	if s == "None":
 		chessboard.rollback();
 	else:
-		play_sound("Promote");
 		chessboard.promote(cell, s);
+		if !handle_check():
+			play_sound("Promote");
 	renderBoard(chessboard);
 	update_selected_cell("");
 	
@@ -213,7 +233,6 @@ func promotion_call(cell: int, s: String):
 	promotion_pieces.clear();
 	
 	check_game_ended();
-	
 	if (chessboard.is_continuing()):
 		update_label(chessboard.is_white_move);
 	
@@ -258,9 +277,9 @@ func handling_mouse_press(mouse_pos: Vector2):
 		
 func update_label(is_white_move:bool):
 	if is_white_move:
-		$GameState.text = "White Turn";
+		$Infos/GameState.text = "White Turn";
 	else:
-		$GameState.text = "Black Turn";
+		$Infos/GameState.text = "Black Turn";
 
 func _input(event):
 	if event is InputEventMouseButton and event.pressed:
@@ -288,15 +307,29 @@ func _ready():
 	
 	dark_overlay.update_display(true);
 	
-	$FlipBoard.z_index = 10;
-	$NewGame.z_index = 10;
-	$GameState.z_index = 10;
+	$Buttons/FlipBoard.z_index = 10;
+	$Buttons/NewGame.z_index = 10;
+	$Buttons/UndoMove.z_index = 10;
+	$Infos/GameState.z_index = 10;
 	
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
-	pass
+	if promotion_pieces.size() == 4:
+		var mouse_pos = get_viewport().get_mouse_position();
+		var found: bool = false;
+		for i in promotion_pieces:
+			if Utility.chebyshev_distance(i.position, mouse_pos) < ALLOWED_DISTANCE:
+				selected_promotion_overlay.update_display(true);
+				selected_promotion_overlay.position = i.position;
+				found = true;
+				break;
+				
+		if (!found):
+			selected_promotion_overlay.update_display(false);
+	else:
+		selected_promotion_overlay.update_display(false);
 	
 func check_game_ended():
 	var current_side: int = chessboard.is_white_move;
@@ -322,13 +355,13 @@ func handle_start_game():
 	initialRender();
 	renderBoard(chessboard);
 	play_sound("NewGame");
-	$GameState.text = "White Turn";
+	$Infos/GameState.text = "White Turn";
 	dark_overlay.update_display(false);
 
 func handle_end_game(msg: String):
 	play_sound("EndGame");
 	chessboard.end_game();
-	$GameState.text = msg;
+	$Infos/GameState.text = msg;
 	dark_overlay.update_display(true);
 
 func _on_flip_board_button_down():
@@ -338,3 +371,7 @@ func _on_flip_board_button_down():
 
 func _on_new_game_button_down():
 	handle_start_game();
+
+
+func _on_undo_move_button_down():
+	pass # Replace with function body.
