@@ -31,10 +31,25 @@ func end_game():
 func reset_board():
 	chessboard = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
 	previous_chessboard = chessboard.duplicate(true);
-	white_castle[0] = 1; white_castle[1] = 1;
-	black_castle[0] = 1; black_castle[1] = 1;
 	is_white_move = true;
 	most_recent_move.clear();
+	
+	white_castle[0] = 1; white_castle[1] = 1;
+	black_castle[0] = 1; black_castle[1] = 1;
+	
+	if chessboard[Utility.cell_notation_to_int("a5")] != 'K':
+		white_castle[0] = 0; white_castle[1] = 0;
+	if chessboard[Utility.cell_notation_to_int("h5")] != 'k':
+		black_castle[0] = 0; black_castle[1] = 0;
+	if chessboard[Utility.cell_notation_to_int("a1")] != 'R':
+		white_castle[0] = 0;
+	if chessboard[Utility.cell_notation_to_int("a8")] != 'R':
+		white_castle[1] = 0;
+	if chessboard[Utility.cell_notation_to_int("h1")] != 'r':
+		black_castle[0] = 0;
+	if chessboard[Utility.cell_notation_to_int("h8")] != 'r':
+		black_castle[1] = 0;
+	
 
 func get_cell(cell:int):
 	return chessboard[cell];
@@ -117,9 +132,11 @@ func rollback():
 	
 # <-------- Move Validator Start -------->
 
-func check_king_move(coord1: Vector2, coord2: Vector2): 
+func check_king_move(coord1: Vector2, coord2: Vector2, allow_special: bool = true): 
 	if Utility.is_king_distance(coord1, coord2): # normal move
 		return MOVE.Normal;
+	if (!allow_special):
+		return MOVE.Invalid;
 	# castling
 	if (coord1.x == coord2.x) && (Utility.chebyshev_distance(coord1, coord2) == 2):
 		var is_white = Utility.is_upper_case(chessboard[Utility.vector_to_cell_index(coord1)]);
@@ -202,7 +219,7 @@ func check_queen_move(coord1: Vector2, coord2: Vector2):
 		return MOVE.Normal;
 	return MOVE.Invalid;
 		
-func check_pawn_move(coord1: Vector2, coord2: Vector2):
+func check_pawn_move(coord1: Vector2, coord2: Vector2, allow_special:bool = true):
 	var cell1:int = Utility.vector_to_cell_index(coord1);
 	var cell2:int = Utility.vector_to_cell_index(coord2);
 	var is_white = Utility.is_upper_case(chessboard[cell1]);
@@ -220,6 +237,9 @@ func check_pawn_move(coord1: Vector2, coord2: Vector2):
 		if ((coord1.x < coord2.x) != is_white):
 			return MOVE.Invalid;
 		return MOVE.Normal;
+	
+	if (!allow_special):
+		return MOVE.Invalid;
 	if (most_recent_move.size() == 2) && (chessboard[most_recent_move[1]].to_lower() == "p") && (chessboard[most_recent_move[1]] != chessboard[cell1]):
 		var coord3 = Utility.int_to_cell_vector(most_recent_move[0]);
 		var coord4 = Utility.int_to_cell_vector(most_recent_move[1]);
@@ -231,7 +251,7 @@ func check_pawn_move(coord1: Vector2, coord2: Vector2):
 func check_tile_attacked(cell: int, opponent_side: bool):
 	for i in range(0, 64):
 		if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == opponent_side):
-			if (validate_move_skeleton(i, cell)): 
+			if (validate_move_skeleton(i, cell, 0)): 
 				return true;
 	return false;
 	
@@ -241,7 +261,7 @@ func in_check(current_side: bool):
 		cur = "k";
 	return check_tile_attacked(chessboard.find(cur), !current_side);
 
-func validate_move_skeleton(cell1: int, cell2: int):
+func validate_move_skeleton(cell1: int, cell2: int, allow_special: bool = true):
 	if chessboard[cell1] == ".":
 		return MOVE.Invalid;
 	if (chessboard[cell2] != ".") && (Utility.is_upper_case(chessboard[cell1]) == Utility.is_upper_case(chessboard[cell2])):
@@ -253,7 +273,7 @@ func validate_move_skeleton(cell1: int, cell2: int):
 	
 	match cur:
 		"k":
-			return check_king_move(coord1, coord2);
+			return check_king_move(coord1, coord2, allow_special);
 		"q":
 			return check_queen_move(coord1, coord2);
 		"b":
@@ -263,7 +283,7 @@ func validate_move_skeleton(cell1: int, cell2: int):
 		"r":
 			return check_rook_move(coord1, coord2);
 		"p":
-			var ans = check_pawn_move(coord1, coord2);
+			var ans = check_pawn_move(coord1, coord2, allow_special);
 			if (ans == MOVE.Normal) && (coord2.x == 0 || coord2.x == 7):
 				ans = MOVE.Promote;
 			return ans;
@@ -310,7 +330,7 @@ func generate_move_from_cell(cell1: int) -> Array:
 
 # <-------- Game State Messing Start -------->
 
-func checkmated(current_side: int):
+func checkmated(current_side: int) -> bool:
 	if in_check(current_side):
 		for i in range(0, 64): 
 			if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == bool(current_side)) && find_valid_move_from_cell(i):
@@ -318,13 +338,34 @@ func checkmated(current_side: int):
 		return true;
 	return false;
 	
-func stalemated(current_side: int):
+func stalemated(current_side: int) -> bool:
 	if !in_check(current_side):
 		for i in range(0, 64): 
 			if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == bool(current_side)) && find_valid_move_from_cell(i):
 				return false;
 		return true;
 	return false;
+	
+func stupid_draw_check() -> String:
+	var none = "None";
+	var insufficient_material = "Game Over! Draw by insufficient material!";
+	# draw by insufficient material: happen if one side only have a king left
+	# and the other also have nothing, or a knight or a bishop
+	var remaining_pieces: Array[String];
+	for i in range(0, 64):
+		if (chessboard[i] != ".") && (chessboard[i].to_lower() != "k"):
+			remaining_pieces.append(chessboard[i].to_lower());
+		if (remaining_pieces.size() > 1):
+			break;
+	match remaining_pieces.size():
+		0:
+			return insufficient_material;
+		1:
+			if (remaining_pieces[0] == 'b') || (remaining_pieces[0] == 'n'):
+				return insufficient_material; 
+			
+	
+	return none;
 
 # <-------- Game State Messing End -------->
 

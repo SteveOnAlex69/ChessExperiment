@@ -57,7 +57,7 @@ func initialRender():
 			chess_piece_instance.position = vector_to_pos(Vector2(i, j));
 			chess_piece_instance.set_current_cell(cell_str);
 
-func renderBoard(board_state):
+func renderBoard(chessboard):
 	for i in range(0, 8):
 		for j in range(0, 8):
 			var current_cell = Utility.vector_to_cell_index(Vector2(i, j));
@@ -212,11 +212,8 @@ func promotion_call(cell: int, s: String):
 		remove_child(i);
 	promotion_pieces.clear();
 	
-func handle_end_game(msg: String):
-	play_sound("EndGame");
-	chessboard.end_game();
-	$GameState.text = msg;
-	dark_overlay.update_display(true);
+	check_game_ended();
+	
 	
 func handling_mouse_press(mouse_pos: Vector2):
 	var cur_cell = get_cell(mouse_pos);
@@ -235,30 +232,24 @@ func handling_mouse_press(mouse_pos: Vector2):
 			if val2 != "." && (Utility.is_upper_case(val1) == Utility.is_upper_case(val2)): # if clicked on the same cell, cancel
 				update_selected_cell(cur_cell);
 			else:
-				match chessboard.validate_move(cell1, cell2):
-					1:
-						handle_normal_move(cell1, cell2);
-					2: 
-						handle_castle(cell1, cell2);
-					3:
-						handle_enpassant(cell1, cell2);
-					4:
-						handle_promotion(cell1, cell2);
-					_:
-						pass;
+				var check = chessboard.validate_move(cell1, cell2);
+				if (check != 0):
+					match check:
+						1:
+							handle_normal_move(cell1, cell2);
+						2: 
+							handle_castle(cell1, cell2);
+						3:
+							handle_enpassant(cell1, cell2);
+						4:
+							handle_promotion(cell1, cell2);
+					update_selected_cell("");
 	else: #cancel selected cell if clicked outside the chessboard
 		update_selected_cell("");
 		
 	if (promotion_pieces.size() == 0) && (selected_cell == ""):
-		var current_side: int = chessboard.is_white_move;
-		if chessboard.checkmated(current_side):
-			if (current_side == 1):
-				handle_end_game("Game Over! Black Win!");
-			else:
-				handle_end_game("Game Over! White Win!");
-		else:
-			if chessboard.stalemated(current_side):	
-				handle_end_game("Game Over! Draw!");
+		print(selected_cell);
+		#check_game_ended();
 		
 func update_label(is_white_move:bool):
 	if is_white_move:
@@ -301,6 +292,39 @@ func _ready():
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
 	pass
+	
+func check_game_ended():
+	var current_side: int = chessboard.is_white_move;
+	if chessboard.checkmated(current_side):
+		if (current_side == 1):
+			handle_end_game("Game Over! Black Win!");
+		else:
+			handle_end_game("Game Over! White Win!");
+		return;
+		
+	if chessboard.stalemated(current_side):	
+		handle_end_game("Game Over! Draw!");
+		return;
+		
+	var msg = chessboard.stupid_draw_check();
+	if (msg != "None"):
+		handle_end_game(msg);
+		return;
+
+func handle_start_game():
+	chessboard.start_game();
+	chessboard.reset_board();
+	initialRender();
+	renderBoard(chessboard);
+	play_sound("NewGame");
+	$GameState.text = "White Turn";
+	dark_overlay.update_display(false);
+
+func handle_end_game(msg: String):
+	play_sound("EndGame");
+	chessboard.end_game();
+	$GameState.text = msg;
+	dark_overlay.update_display(true);
 
 func _on_flip_board_button_down():
 	flipped_board = !flipped_board;
@@ -308,9 +332,4 @@ func _on_flip_board_button_down():
 	renderBoard(chessboard);
 
 func _on_new_game_button_down():
-	chessboard.start_game();
-	chessboard.reset_board();
-	initialRender();
-	renderBoard(chessboard);
-	play_sound("NewGame");
-	dark_overlay.update_display(false);
+	handle_start_game();

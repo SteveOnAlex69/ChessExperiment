@@ -8,7 +8,6 @@ static func chebyshev_distance(a: Vector2, b:Vector2):
 static func manhattan_distance(a: Vector2, b:Vector2):
 	return abs(a.x - b.x) + abs(a.y - b.y);	
 	
-
 static func vector_to_cell_index(p: Vector2):
 	return p.x * 8 + p.y;
 
@@ -33,7 +32,6 @@ static func cell_notation_to_int(s: String):
 static func is_upper_case(s: String):
 	return s == s.to_upper();
 	
-
 static func is_king_distance(a: Vector2, b:Vector2):
 	return chebyshev_distance(a, b) <= 1;
 
