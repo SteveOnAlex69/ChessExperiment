@@ -11,6 +11,8 @@ var white_castle: Array;
 var black_castle: Array;
 var is_white_move: bool;
 var game_continuing: bool = false;
+var board_history: Array;
+var fifty_move_counter: int;
 
 var most_recent_move: Array[int];
 
@@ -33,6 +35,8 @@ func reset_board():
 	previous_chessboard = chessboard.duplicate(true);
 	is_white_move = true;
 	most_recent_move.clear();
+	fifty_move_counter = 100;
+	board_history.clear();
 	
 	white_castle[0] = 1; white_castle[1] = 1;
 	black_castle[0] = 1; black_castle[1] = 1;
@@ -57,9 +61,15 @@ func get_cell(cell:int):
 func set_cell(cell:int, val:String):
 	chessboard[cell] = val;
 	
-func update_history():
+func update_history(fifty_move_reset: bool = false):
 	previous_chessboard = chessboard.duplicate(true);
 	is_white_move = !is_white_move;
+	if fifty_move_reset:
+		fifty_move_counter = 100;
+		board_history.clear();
+	else:
+		fifty_move_counter -= 1;
+		board_history.append(hash(chessboard));
 	
 func disable_castling_rook(cell: int):
 	var pos = Utility.int_to_cell_vector(cell);
@@ -77,7 +87,7 @@ func disable_castling_rook(cell: int):
 	
 func normal_move(cell1: int, cell2: int, is_actual_move: bool = true):
 	if is_actual_move:
-		update_history();
+		update_history((chessboard[cell1].to_lower() == 'p') || (chessboard[cell2] != '.'));
 	disable_castling_rook(cell1); 
 	disable_castling_rook(cell2);
 	
@@ -113,7 +123,7 @@ func castle(cell1: int, cell2: int):
 		
 
 func en_passant(cell1: int, cell2: int):
-	update_history();
+	update_history(true);
 	normal_move(cell1, cell2, false);
 	var coord1 = Utility.int_to_cell_vector(cell1);
 	var coord2 = Utility.int_to_cell_vector(cell2);
@@ -296,6 +306,7 @@ func validate_move(cell1: int, cell2: int): #validate_move, but perform check ch
 		return MOVE.Invalid;
 	var tmp_board: ChessBoard = ChessBoard.new();
 	tmp_board.is_white_move = is_white_move;
+	tmp_board.fifty_move_counter = fifty_move_counter;
 	tmp_board.chessboard = chessboard.duplicate(true);
 	
 	if (ans == MOVE.Normal) || (ans == MOVE.Promote):
@@ -348,7 +359,9 @@ func stalemated(current_side: int) -> bool:
 	
 func stupid_draw_check() -> String:
 	var none = "None";
-	var insufficient_material = "Game Over! Draw by insufficient material!";
+	var insufficient_material = "Draw by insufficient material!";
+	var fifty_move_rule = "Draw by Fifty-Move rule!"
+	var three_repetition_rule = "Draw by 3-Repetition rule!";
 	# draw by insufficient material: happen if one side only have a king left
 	# and the other also have nothing, or a knight or a bishop
 	var remaining_pieces: Array[String];
@@ -364,6 +377,16 @@ func stupid_draw_check() -> String:
 			if (remaining_pieces[0] == 'b') || (remaining_pieces[0] == 'n'):
 				return insufficient_material; 
 			
+	if (fifty_move_counter <= 0):
+		return fifty_move_rule;
+		
+	var cnt= 0; var cur_hash = hash(chessboard.duplicate(true));
+	for i in board_history:
+		if (i == cur_hash):
+			cnt += 1;
+			
+	if (cnt >= 2):
+		return three_repetition_rule;
 	
 	return none;
 

@@ -104,7 +104,7 @@ func play_sound(arg:String):
 		"EndGame":
 			$SoundPack/EndGameSound.play();
 		_:
-			print("What?");
+			print("Invalid Sound");
 			
 func clear_hint_list():
 	if (hint_overlay_list.size() == 0):
@@ -214,6 +214,9 @@ func promotion_call(cell: int, s: String):
 	
 	check_game_ended();
 	
+	if (chessboard.is_continuing()):
+		update_label(chessboard.is_white_move);
+	
 	
 func handling_mouse_press(mouse_pos: Vector2):
 	var cur_cell = get_cell(mouse_pos);
@@ -248,8 +251,10 @@ func handling_mouse_press(mouse_pos: Vector2):
 		update_selected_cell("");
 		
 	if (promotion_pieces.size() == 0) && (selected_cell == ""):
-		print(selected_cell);
-		#check_game_ended();
+		check_game_ended();
+		
+	if (chessboard.is_continuing()):
+		update_label(chessboard.is_white_move);
 		
 func update_label(is_white_move:bool):
 	if is_white_move:
@@ -297,13 +302,13 @@ func check_game_ended():
 	var current_side: int = chessboard.is_white_move;
 	if chessboard.checkmated(current_side):
 		if (current_side == 1):
-			handle_end_game("Game Over! Black Win!");
+			handle_end_game("Black Win!");
 		else:
-			handle_end_game("Game Over! White Win!");
+			handle_end_game("White Win!");
 		return;
 		
 	if chessboard.stalemated(current_side):	
-		handle_end_game("Game Over! Draw!");
+		handle_end_game("Draw!");
 		return;
 		
 	var msg = chessboard.stupid_draw_check();
