@@ -1,7 +1,6 @@
 extends Node2D
 
-var chessboard = ChessBoard.new();
-var board_history: Array;
+var chessboard = ChessBoardWrapper.new("RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr");
 const ALLOWED_DISTANCE = 35;
 
 var chess_piece = preload("res://scene/pieces.tscn");
@@ -141,7 +140,7 @@ func update_selected_cell(cur_cell: String):
 		update_hint_list(move_list);
 		
 func handle_check() -> bool:
-	var cur = chessboard.is_white_move;
+	var cur = chessboard.is_white_move();
 	if (chessboard.in_check(cur)):
 		play_sound("Check");
 		return true;
@@ -159,7 +158,6 @@ func handle_normal_move(cell1: int, cell2: int):
 			play_sound("Capture");
 		else: 
 			play_sound("Move");
-	board_history.append(chessboard.deep_copy());
 	
 func handle_castle(cell1: int, cell2: int):
 	chessboard.castle(cell1, cell2);
@@ -168,7 +166,6 @@ func handle_castle(cell1: int, cell2: int):
 	
 	if !handle_check():
 		play_sound("Castle");
-	board_history.append(chessboard.deep_copy());
 	
 func handle_enpassant(cell1: int, cell2: int):
 	chessboard.en_passant(cell1, cell2);
@@ -178,7 +175,6 @@ func handle_enpassant(cell1: int, cell2: int):
 	
 	if !handle_check():
 		play_sound("Capture");
-	board_history.append(chessboard.deep_copy());
 	
 func handle_promotion(cell1: int, cell2: int):
 	var is_white = Utility.is_upper_case(chessboard.get_cell(cell1));
@@ -187,7 +183,6 @@ func handle_promotion(cell1: int, cell2: int):
 	update_selected_cell("");
 	
 	create_promotion_pop_up(is_white, Utility.int_to_cell_vector(cell2));
-	board_history.append(chessboard.deep_copy());
 	
 
 func create_promotion_pop_up(is_white: bool, v: Vector2):
@@ -222,14 +217,12 @@ func create_promotion_pop_up(is_white: bool, v: Vector2):
 		piece_instance.position = v1;
 		
 func promotion_call(cell: int, s: String):
-	board_history.pop_back();
 	if s == "None":
-		chessboard = board_history.back().deep_copy();
+		chessboard.roll_back();
 	else:
 		chessboard.promote(cell, s);
 		if !handle_check():
 			play_sound("Promote");
-		board_history.append(chessboard.deep_copy());
 	renderBoard(chessboard);
 	update_selected_cell("");
 	
@@ -241,7 +234,7 @@ func promotion_call(cell: int, s: String):
 	
 	check_game_ended();
 	if (chessboard.is_continuing()):
-		update_label(chessboard.is_white_move);
+		update_label(chessboard.is_white_move());
 	
 	
 func handling_mouse_press(mouse_pos: Vector2):
@@ -250,7 +243,7 @@ func handling_mouse_press(mouse_pos: Vector2):
 		if (selected_cell == ""): # if not selecting any cell, select the cell
 			var cell = Utility.cell_notation_to_int(cur_cell);
 			var val = chessboard.get_cell(cell);
-			if (val != ".") && (Utility.is_upper_case(val) == chessboard.is_white_move):
+			if (val != ".") && (Utility.is_upper_case(val) == chessboard.is_white_move()):
 				update_selected_cell(cur_cell);
 		else:
 			var cell1 = Utility.cell_notation_to_int(selected_cell);
@@ -280,7 +273,7 @@ func handling_mouse_press(mouse_pos: Vector2):
 		check_game_ended();
 		
 	if (chessboard.is_continuing()):
-		update_label(chessboard.is_white_move);
+		update_label(chessboard.is_white_move());
 		
 func update_label(is_white_move:bool):
 	if is_white_move:
@@ -298,12 +291,12 @@ func _input(event):
 			for i in promotion_pieces:
 				if (Utility.chebyshev_distance(i.position, mouse_pos) < ALLOWED_DISTANCE):
 					chosen_piece = i.current_piece;
-			promotion_call(chessboard.most_recent_move[1], chosen_piece);
+			promotion_call(chessboard.most_recent_move(1), chosen_piece);
 		else:
 			handling_mouse_press(mouse_pos);
 			
 		if (chessboard.is_continuing()):
-			update_label(chessboard.is_white_move);
+			update_label(chessboard.is_white_move());
 
 
 # Called when the node enters the scene tree for the first time.
@@ -339,7 +332,7 @@ func _process(delta):
 		selected_promotion_overlay.update_display(false);
 	
 func check_game_ended():
-	var current_side: int = chessboard.is_white_move;
+	var current_side: int = chessboard.is_white_move();
 	if chessboard.checkmated(current_side):
 		if (current_side == 1):
 			handle_end_game("Black Win!");
@@ -359,9 +352,6 @@ func check_game_ended():
 func handle_start_game():
 	chessboard.reset_board();
 	chessboard.start_game();
-	
-	board_history.clear();
-	board_history.append(chessboard.deep_copy());
 	
 	initialRender();
 	renderBoard(chessboard);
@@ -385,8 +375,7 @@ func _on_new_game_button_down():
 
 
 func _on_undo_move_button_down():
-	if (chessboard.is_continuing() && board_history.size() > 1):
-		board_history.pop_back();
-		chessboard = board_history.back().deep_copy();
+	if chessboard.is_continuing():
+		chessboard.roll_back();
 		renderBoard(chessboard);
 		play_sound("Move");

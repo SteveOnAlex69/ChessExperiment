@@ -5,7 +5,8 @@ class_name ChessBoard;
 
 enum MOVE {Invalid, Normal, Castle, EnPassant, Promote};
 
-var chessboard: Array = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
+var init_state;
+var chessboard: Array;
 var white_castle: Array;
 var black_castle: Array;
 var is_white_move: bool;
@@ -15,7 +16,9 @@ var fifty_move_counter: int;
 
 var most_recent_move: Array[int];
 
-func _init():
+func _init(starting: String):
+	init_state = starting;
+	chessboard = starting.split("");
 	white_castle.append(1); white_castle.append(1);
 	black_castle.append(1); black_castle.append(1);
 	is_white_move = true;
@@ -30,7 +33,7 @@ func end_game():
 	game_continuing = false;
 	
 func reset_board():
-	chessboard = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
+	chessboard = init_state.split("");
 	is_white_move = true;
 	most_recent_move.clear();
 	fifty_move_counter = 100;
@@ -135,7 +138,7 @@ func promote(cell: int, s: String):
 	chessboard[cell] = s;
 	
 func deep_copy() -> ChessBoard:
-	var tmp = ChessBoard.new();
+	var tmp = ChessBoard.new(init_state);
 	
 	tmp.is_white_move = is_white_move;
 	tmp.game_continuing = game_continuing;
@@ -304,10 +307,7 @@ func validate_move(cell1: int, cell2: int): #validate_move, but perform check ch
 	var ans = validate_move_skeleton(cell1, cell2);
 	if ans == MOVE.Invalid: #break early to save computation power
 		return MOVE.Invalid;
-	var tmp_board: ChessBoard = ChessBoard.new();
-	tmp_board.is_white_move = is_white_move;
-	tmp_board.fifty_move_counter = fifty_move_counter;
-	tmp_board.chessboard = chessboard.duplicate(true);
+	var tmp_board: ChessBoard = deep_copy();
 	
 	if (ans == MOVE.Normal) || (ans == MOVE.Promote):
 		tmp_board.normal_move(cell1, cell2);
@@ -320,7 +320,6 @@ func validate_move(cell1: int, cell2: int): #validate_move, but perform check ch
 			return MOVE.Invalid;
 		return MOVE.EnPassant;
 	return ans;
-	
 
 func find_valid_move_from_cell(cell1: int) -> bool:
 	for i in range(0, 8):
