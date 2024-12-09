@@ -1,6 +1,7 @@
 extends Node2D
 
 var chessboard = ChessBoard.new();
+var board_history: Array;
 const ALLOWED_DISTANCE = 35;
 
 var chess_piece = preload("res://scene/pieces.tscn");
@@ -158,6 +159,7 @@ func handle_normal_move(cell1: int, cell2: int):
 			play_sound("Capture");
 		else: 
 			play_sound("Move");
+	board_history.append(chessboard.deep_copy());
 	
 func handle_castle(cell1: int, cell2: int):
 	chessboard.castle(cell1, cell2);
@@ -166,6 +168,7 @@ func handle_castle(cell1: int, cell2: int):
 	
 	if !handle_check():
 		play_sound("Castle");
+	board_history.append(chessboard.deep_copy());
 	
 func handle_enpassant(cell1: int, cell2: int):
 	chessboard.en_passant(cell1, cell2);
@@ -175,6 +178,7 @@ func handle_enpassant(cell1: int, cell2: int):
 	
 	if !handle_check():
 		play_sound("Capture");
+	board_history.append(chessboard.deep_copy());
 	
 func handle_promotion(cell1: int, cell2: int):
 	var is_white = Utility.is_upper_case(chessboard.get_cell(cell1));
@@ -183,6 +187,7 @@ func handle_promotion(cell1: int, cell2: int):
 	update_selected_cell("");
 	
 	create_promotion_pop_up(is_white, Utility.int_to_cell_vector(cell2));
+	board_history.append(chessboard.deep_copy());
 	
 
 func create_promotion_pop_up(is_white: bool, v: Vector2):
@@ -217,12 +222,14 @@ func create_promotion_pop_up(is_white: bool, v: Vector2):
 		piece_instance.position = v1;
 		
 func promotion_call(cell: int, s: String):
+	board_history.pop_back();
 	if s == "None":
-		chessboard.rollback();
+		chessboard = board_history.back().deep_copy();
 	else:
 		chessboard.promote(cell, s);
 		if !handle_check():
 			play_sound("Promote");
+		board_history.append(chessboard.deep_copy());
 	renderBoard(chessboard);
 	update_selected_cell("");
 	
@@ -350,8 +357,12 @@ func check_game_ended():
 		return;
 
 func handle_start_game():
-	chessboard.start_game();
 	chessboard.reset_board();
+	chessboard.start_game();
+	
+	board_history.clear();
+	board_history.append(chessboard.deep_copy());
+	
 	initialRender();
 	renderBoard(chessboard);
 	play_sound("NewGame");
@@ -374,4 +385,8 @@ func _on_new_game_button_down():
 
 
 func _on_undo_move_button_down():
-	pass # Replace with function body.
+	if (chessboard.is_continuing() && board_history.size() > 1):
+		board_history.pop_back();
+		chessboard = board_history.back().deep_copy();
+		renderBoard(chessboard);
+		play_sound("Move");

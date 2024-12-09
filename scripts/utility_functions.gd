@@ -46,6 +46,12 @@ static func is_bishop_distance(a: Vector2, b:Vector2):
 
 static func is_pawn_distance(a: Vector2, b:Vector2):
 	return (manhattan_distance(a, b) <= 2) && (a.y == b.y);
+	
+static func make_string_from_arr(arr: Array):
+	var ans: String;
+	for i in arr:
+		ans = ans + i;
+	return ans;
 
 # Called when the node enters the scene tree for the first time.
 func _ready():

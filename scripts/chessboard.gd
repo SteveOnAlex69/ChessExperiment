@@ -1,4 +1,4 @@
-extends Node
+extends Resource
 
 
 class_name ChessBoard;
@@ -6,7 +6,6 @@ class_name ChessBoard;
 enum MOVE {Invalid, Normal, Castle, EnPassant, Promote};
 
 var chessboard: Array = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
-var previous_chessboard: Array = chessboard.duplicate(true);
 var white_castle: Array;
 var black_castle: Array;
 var is_white_move: bool;
@@ -32,7 +31,6 @@ func end_game():
 	
 func reset_board():
 	chessboard = "RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr".split("");
-	previous_chessboard = chessboard.duplicate(true);
 	is_white_move = true;
 	most_recent_move.clear();
 	fifty_move_counter = 100;
@@ -62,7 +60,6 @@ func set_cell(cell:int, val:String):
 	chessboard[cell] = val;
 	
 func update_history(fifty_move_reset: bool = false):
-	previous_chessboard = chessboard.duplicate(true);
 	is_white_move = !is_white_move;
 	if fifty_move_reset:
 		fifty_move_counter = 100;
@@ -137,9 +134,21 @@ func promote(cell: int, s: String):
 	is_white_move = !is_white_move;
 	chessboard[cell] = s;
 	
-func rollback():
-	chessboard = previous_chessboard.duplicate(true);
+func deep_copy() -> ChessBoard:
+	var tmp = ChessBoard.new();
 	
+	tmp.is_white_move = is_white_move;
+	tmp.game_continuing = game_continuing;
+	tmp.fifty_move_counter = fifty_move_counter;
+	tmp.chessboard = chessboard.duplicate(true);
+	tmp.white_castle = white_castle.duplicate(true);
+	tmp.black_castle = black_castle.duplicate(true);
+	tmp.board_history_hash = board_history_hash.duplicate(true);
+	tmp.most_recent_move = most_recent_move.duplicate(true);
+	
+	return tmp;
+	
+
 # <-------- Move Validator Start -------->
 
 func check_king_move(coord1: Vector2, coord2: Vector2, allow_special: bool = true): 
@@ -386,9 +395,11 @@ func stupid_draw_check() -> String:
 			if (remaining_pieces[0] == 'b') || (remaining_pieces[0] == 'n'):
 				return insufficient_material; 
 			
+	# Fifty move rule: if no capture and pawn move happen in 50 move, draw
 	if (fifty_move_counter <= 0):
 		return fifty_move_rule;
 		
+	# If a board state is repeated 3 times, draw
 	var cnt= 0; var cur_hash = hash(chessboard.duplicate(true));
 	for i in board_history_hash:
 		if (i == cur_hash):
