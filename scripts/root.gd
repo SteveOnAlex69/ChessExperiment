@@ -1,5 +1,7 @@
 extends Node2D
 
+enum GAMEMODE {PvP, PvE, EvP, EvE};
+
 var chessboard = ChessBoardWrapper.new("RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr");
 const ALLOWED_DISTANCE = 35;
 
@@ -9,10 +11,10 @@ var selected_overlay_scene = preload("res://scene/selected_overlay.tscn");
 var promotion_gui_scene = preload("res://scene/promotion_gui.tscn");
 
 var hint_overlay_list: Array;
-var starting_point = Vector2(376, 96);
+var starting_point = Vector2(376, 116);
 var spacing:float = 75.5;
 var chess_piece_instance_list = [];
-var selected_cell = "";
+var cur_gamemode: int = GAMEMODE.PvP;
 
 var flipped_board = false;
 var selected_overlay = selected_overlay_scene.instantiate();
@@ -20,6 +22,9 @@ var selected_promotion_overlay = selected_overlay_scene.instantiate();
 var dark_overlay = selected_overlay_scene.instantiate();
 var promotion_gui = promotion_gui_scene.instantiate();
 var promotion_pieces: Array;
+
+
+var chess_engine: SickDuckV0 = SickDuckV0.new();
 
 # <------------------------- Utility function start ------------------------->
 
@@ -35,11 +40,20 @@ func get_cell(mouse_pos: Vector2):
 			return i.current_cell;
 	return "None";
 	
-
 func get_viewport_size() -> Vector2:
 	return get_viewport().size;
 	
 # <------------------------- Utility function end ------------------------->
+
+
+	
+# <------------------------- Misc (Idk how to categorize them) here ------------------------->
+func update_label(is_white_move:bool):
+	if is_white_move:
+		$Infos/GameState.text = "White Turn";
+	else:
+		$Infos/GameState.text = "Black Turn";
+# <------------------------- Misc ends  ------------------------->
 
 # <------------------------- Rendering chessboard here  ------------------------->
 func initialRender():
@@ -64,6 +78,11 @@ func renderBoard(chessboard):
 			var current_cell = Utility.vector_to_cell_index(Vector2(i, j));
 			chess_piece_instance_list[current_cell].set_type(chessboard.get_cell(current_cell));
 			
+# <------------------------- Rendering chessboard end  ------------------------->
+
+
+# <------------------------- Rendering overlay here  ------------------------->
+
 
 func initializeOverlay():
 	var v = get_viewport_size();
@@ -90,9 +109,38 @@ func relocateOverlay(v: Vector2):
 		selected_overlay.update_display(true);
 		selected_overlay.position = vector_to_pos(v);
 
-# <------------------------- Rendering chessboard end  ------------------------->
 
+func clear_hint_list():
+	if (hint_overlay_list.size() == 0):
+		return;
+	for i in hint_overlay_list:
+		remove_child(i);
+		i.queue_free();
+	hint_overlay_list.clear();
+	
+func update_hint_list(move_list):
+	for i in move_list:
+		var hint_instance = hint_overlay_scene.instantiate();
+		
+		hint_overlay_list.append(hint_instance);
+		add_child(hint_instance);
+		
+		hint_instance.position = vector_to_pos(i);
+		hint_instance.all_in_one(true, Vector2(0.6, 0.6), 0.5, 2);
+		
+		
+func update_selected_cell(cur_cell: String):
+	clear_hint_list();
+	chessboard.selected_cell = cur_cell;
+	if (cur_cell == ""):
+		relocateOverlay(Vector2(-1, -1));
+	else:
+		relocateOverlay(Utility.cell_notation_to_vector(chessboard.selected_cell));
+		var move_list = chessboard.generate_move_from_cell(Utility.cell_notation_to_int(chessboard.selected_cell));
+		update_hint_list(move_list);
+# <------------------------- Rendering overlay end  ------------------------->
 
+# <------------------------- Sound stuff here  ------------------------->
 func play_sound(arg:String):
 	match arg:
 		"Move":
@@ -112,32 +160,10 @@ func play_sound(arg:String):
 		_:
 			print("Invalid Sound");
 			
-func clear_hint_list():
-	if (hint_overlay_list.size() == 0):
-		return;
-	for i in hint_overlay_list:
-		remove_child(i);
-	hint_overlay_list.clear();
-	
-func update_hint_list(move_list):
-	for i in move_list:
-		var hint_instance = hint_overlay_scene.instantiate();
-		
-		hint_overlay_list.append(hint_instance);
-		add_child(hint_instance);
-		
-		hint_instance.position = vector_to_pos(i);
-		hint_instance.all_in_one(true, Vector2(0.6, 0.6), 0.5, 2);
+# <------------------------- Sound stuff ends  ------------------------->
+			
 
-func update_selected_cell(cur_cell: String):
-	clear_hint_list();
-	selected_cell = cur_cell;
-	if (cur_cell == ""):
-		relocateOverlay(Vector2(-1, -1));
-	else:
-		relocateOverlay(Utility.cell_notation_to_vector(selected_cell));
-		var move_list = chessboard.generate_move_from_cell(Utility.cell_notation_to_int(selected_cell));
-		update_hint_list(move_list);
+# <------------------------- Handle Game Events Here  ------------------------->
 		
 func handle_check() -> bool:
 	var cur = chessboard.is_white_move();
@@ -184,20 +210,16 @@ func handle_promotion(cell1: int, cell2: int):
 	
 	create_promotion_pop_up(is_white, Utility.int_to_cell_vector(cell2));
 	
-
 func create_promotion_pop_up(is_white: bool, v: Vector2):
 	clear_hint_list();
 	dark_overlay.update_display(true);
 	promotion_gui.update_display(true);
 	
 	v = vector_to_pos(v);
-	var _v = v;
+	var _v = Vector2(v.x, v.y - spacing * 1.5);
 	if (is_white != flipped_board): 
-		_v.y += spacing * 1.5;
-	else:
-		_v.y -= spacing * 1.5;
+		_v.y += spacing * 3;
 	promotion_gui.position = _v;
-		
 	
 	var arr: Array = ["q", "r", "b", "n"];
 	for i in range(0, 4): 
@@ -208,11 +230,9 @@ func create_promotion_pop_up(is_white: bool, v: Vector2):
 		add_child(piece_instance);
 		
 		piece_instance.set_type(arr[i]);
-		var v1 = v;
+		var v1 = Vector2(v.x, v.y - spacing * i);
 		if (is_white != flipped_board) :
-			v1.y += spacing * i;
-		else:
-			v1.y -= spacing * i;
+			v1.y += 2 * spacing * i;
 		piece_instance.set_sprite_layer(4);
 		piece_instance.position = v1;
 		
@@ -230,56 +250,41 @@ func promotion_call(cell: int, s: String):
 	promotion_gui.update_display(false);
 	for i in promotion_pieces:
 		remove_child(i);
+		i.queue_free();
 	promotion_pieces.clear();
 	
 	check_game_ended();
 	if (chessboard.is_continuing()):
 		update_label(chessboard.is_white_move());
+		
+# <------------------------- Handle Game Events End  ------------------------->
 	
 	
+# <------------------------- Handle Input  ------------------------->
 func handling_mouse_press(mouse_pos: Vector2):
 	var cur_cell = get_cell(mouse_pos);
 	if (cur_cell != "None"):  # if clicked inside the chessboard
-		if (selected_cell == ""): # if not selecting any cell, select the cell
-			var cell = Utility.cell_notation_to_int(cur_cell);
-			var val = chessboard.get_cell(cell);
-			if (val != ".") && (Utility.is_upper_case(val) == chessboard.is_white_move()):
-				update_selected_cell(cur_cell);
-		else:
-			var cell1 = Utility.cell_notation_to_int(selected_cell);
-			var cell2 = Utility.cell_notation_to_int(cur_cell);
-			
-			var val1 = chessboard.get_cell(cell1);
-			var val2 = chessboard.get_cell(cell2);
-			if val2 != "." && (Utility.is_upper_case(val1) == Utility.is_upper_case(val2)): # if clicked on the same cell, cancel
-				update_selected_cell(cur_cell);
-			else:
-				var check = chessboard.validate_move(cell1, cell2);
-				if (check != 0):
-					match check:
-						1:
-							handle_normal_move(cell1, cell2);
-						2: 
-							handle_castle(cell1, cell2);
-						3:
-							handle_enpassant(cell1, cell2);
-						4:
-							handle_promotion(cell1, cell2);
-					update_selected_cell("");
+		var cur_signal = chessboard.press_on_cell(cur_cell);
+		if (cur_signal.size() > 0):
+			var cell1 = cur_signal[1]; var cell2 = cur_signal[2];
+			match cur_signal[0]:
+				1:
+					handle_normal_move(cell1, cell2);
+				2: 
+					handle_castle(cell1, cell2);
+				3:
+					handle_enpassant(cell1, cell2);
+				4:
+					handle_promotion(cell1, cell2);
+		update_selected_cell(chessboard.selected_cell);
 	else: #cancel selected cell if clicked outside the chessboard
 		update_selected_cell("");
 		
-	if (promotion_pieces.size() == 0) && (selected_cell == ""):
+	if (promotion_pieces.size() == 0) && (chessboard.selected_cell == ""):
 		check_game_ended();
-		
 	if (chessboard.is_continuing()):
 		update_label(chessboard.is_white_move());
 		
-func update_label(is_white_move:bool):
-	if is_white_move:
-		$Infos/GameState.text = "White Turn";
-	else:
-		$Infos/GameState.text = "Black Turn";
 
 func _input(event):
 	if event is InputEventMouseButton and event.pressed:
@@ -298,6 +303,8 @@ func _input(event):
 		if (chessboard.is_continuing()):
 			update_label(chessboard.is_white_move());
 
+# <------------------------- Handle Input  ------------------------->
+
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -307,9 +314,15 @@ func _ready():
 	
 	dark_overlay.update_display(true);
 	
-	$Buttons/FlipBoard.z_index = 10;
-	$Buttons/NewGame.z_index = 10;
-	$Buttons/UndoMove.z_index = 10;
+	$OperationButton/FlipBoard.z_index = 10;
+	$OperationButton/NewGame.z_index = 10;
+	$OperationButton/UndoMove.z_index = 10;
+	
+	$GamemodeSwitcher/PvP.z_index = 10;
+	$GamemodeSwitcher/PvE.z_index = 10;
+	$GamemodeSwitcher/EvP.z_index = 10;
+	$GamemodeSwitcher/EvE.z_index = 10;
+	
 	$Infos/GameState.z_index = 10;
 	
 
@@ -341,7 +354,7 @@ func check_game_ended():
 		return;
 		
 	if chessboard.stalemated(current_side):	
-		handle_end_game("Draw!");
+		handle_end_game("Draw by stalemate!");
 		return;
 		
 	var msg = chessboard.stupid_draw_check();
@@ -353,14 +366,23 @@ func handle_start_game():
 	chessboard.reset_board();
 	chessboard.start_game();
 	
+	
+	for i in range(1, 4):
+		var start_time = Time.get_ticks_msec();
+		var ans = chess_engine.count_move(chessboard, i);
+		var end_time = Time.get_ticks_msec();
+		print("Test ", i, ": ", i, " ", ans, ". Time elapsed: ", end_time - start_time, " ms!");
+	
+	
 	initialRender();
 	renderBoard(chessboard);
 	play_sound("NewGame");
 	$Infos/GameState.text = "White Turn";
 	dark_overlay.update_display(false);
 
-func handle_end_game(msg: String):
-	play_sound("EndGame");
+func handle_end_game(msg: String, should_play_sound: bool = true):
+	if should_play_sound:
+		play_sound("EndGame");
 	chessboard.end_game();
 	$Infos/GameState.text = msg;
 	dark_overlay.update_display(true);
@@ -379,3 +401,20 @@ func _on_undo_move_button_down():
 		chessboard.roll_back();
 		renderBoard(chessboard);
 		play_sound("Move");
+
+
+
+func _on_pvp_button_down():
+	if (cur_gamemode == GAMEMODE.PvP):
+		return;
+	cur_gamemode = GAMEMODE.PvP;
+	handle_end_game("Press New Game to Start", chessboard.is_continuing());
+	chessboard.reset_board();
+
+
+func _on_pve_button_down():
+	if (cur_gamemode == GAMEMODE.PvE):
+		return;
+	cur_gamemode = GAMEMODE.PvE;
+	handle_end_game("Press New Game to Start", chessboard.is_continuing());
+	chessboard.reset_board();

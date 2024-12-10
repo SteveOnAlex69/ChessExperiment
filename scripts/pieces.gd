@@ -6,7 +6,7 @@ var piece_type: int;
 var current_cell = "#";
 var current_piece = "";
 
-func set_type(type:String):
+func set_type(type:String) -> void:
 	current_piece = type;
 	if (Utility.is_upper_case(type)) :
 		piece_type = 6;
@@ -30,12 +30,12 @@ func set_type(type:String):
 			
 	update_display();
 	
-func set_sprite_region(sprite: Sprite2D, x: int, y:int, sprite_size:Vector2):
+func set_sprite_region(sprite: Sprite2D, x: int, y:int, sprite_size:Vector2) -> void:
 	sprite.region_enabled = true;
 	sprite.region_rect = Rect2(Vector2(x * sprite_size.x, y * sprite_size.y), sprite_size);
 	
 	
-func update_display():
+func update_display() -> void:
 	if (piece_type == 12):
 		hide();
 	else:
@@ -45,11 +45,10 @@ func update_display():
 		
 		set_sprite_region($Sprite2D, x, y, Vector2(64, 64));
 		
-func set_current_cell(cell: String):
+func set_current_cell(cell: String) -> void:
 	current_cell = cell;
-	
 
-func set_sprite_layer(i: int):
+func set_sprite_layer(i: int) -> void:
 	var sprite = $Sprite2D;
 	if sprite && sprite is Sprite2D:
 		sprite.z_index = i;
@@ -58,7 +57,6 @@ func set_sprite_layer(i: int):
 func _ready():
 	set_type('.');
 	update_display();
-
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta):
