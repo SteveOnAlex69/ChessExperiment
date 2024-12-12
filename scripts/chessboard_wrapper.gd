@@ -59,20 +59,25 @@ func promote(cell: int, s: String) -> void:
 func in_check(current_side: bool) -> bool:
 	return chessboard.in_check(current_side);
 
-func validate_move(cell1: int, cell2: int) -> int: #validate_move, but perform check check
-	return chessboard.validate_move(cell1, cell2);
-
-func find_valid_move_from_cell(cell1: int) -> bool:
-	return chessboard.find_valid_move_from_cell(cell1);
-
-func generate_move_from_cell(cell1: int) -> Array:
-	return chessboard.generate_move_from_cell(cell1);
+func validate_move(cell1: int, cell2: int) -> int: 
+	chessboard.generate_move();
+	for i in chessboard.available_move:
+		if (i[0] == cell1 && i[1] == cell2):
+			return i[2];
+	return 0;
 	
-func generate_move_type_from_cell(cell1: int) -> Array:
-	return chessboard.generate_move_type_from_cell(cell1);
+func generate_move_from_cell(cell1: int) -> Array:
+	chessboard.generate_move();
+	var ans: Array;
+	for i in chessboard.available_move:
+		if (i[0] == cell1):
+			if (i.size() == 3) || (i[3] == 0):
+				ans.append(Utility.int_to_cell_vector(i[1]));
+	return ans;
 	
 func generate_move() -> Array:
-	return chessboard.generate_move();
+	chessboard.generate_move();
+	return chessboard.available_move;
 	
 func roll_back() -> bool:
 	if (chessboard.is_continuing() == false) || (board_history.size() <= 1):
@@ -111,7 +116,7 @@ func press_on_cell(cur_cell: String) -> Array:
 			selected_cell = cur_cell;
 			return ans;
 		else:
-			var check = chessboard.validate_move(cell1, cell2);
+			var check = validate_move(cell1, cell2);
 			ans = [check, cell1, cell2];
 			selected_cell = "";
 			return ans;

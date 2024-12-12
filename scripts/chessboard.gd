@@ -14,7 +14,8 @@ var board_history_hash: Array;
 var fifty_move_counter: int;
 
 var most_recent_move: Array[int];
-
+var available_move: Array;
+var updated: bool = false;
 
 # <-------- Simple stuff starts ---------->
 
@@ -42,6 +43,7 @@ func reset_board() -> void:
 	board_history_hash.clear();
 	
 	can_castle = [[1, 1], [1, 1]];
+	updated = false;
 	
 	if chessboard[Utility.cell_notation_to_int("a5")] != 'K':
 		can_castle[1] = [0, 0];
@@ -85,6 +87,8 @@ func deep_copy() -> ChessBoard:
 	tmp.white_move = white_move;
 	tmp.game_continuing = game_continuing;
 	tmp.fifty_move_counter = fifty_move_counter;
+	tmp.updated = false;
+	
 	tmp.chessboard = chessboard.duplicate(true);
 	tmp.can_castle = can_castle.duplicate(true);
 	tmp.board_history_hash = board_history_hash.duplicate(true);
@@ -99,7 +103,8 @@ func deep_copy() -> ChessBoard:
 func normal_move(cell1: int, cell2: int, is_actual_move: bool = true) -> void:
 	if is_actual_move:
 		update_history((chessboard[cell1].to_lower() == 'p') || (chessboard[cell2] != '.'));
-	disable_castling_rook(cell1); disable_castling_rook(cell2);
+	disable_castling_rook(cell1); 
+	disable_castling_rook(cell2);
 	
 	if chessboard[cell1] == 'K':
 		can_castle[1] = [0, 0];
@@ -108,6 +113,9 @@ func normal_move(cell1: int, cell2: int, is_actual_move: bool = true) -> void:
 	chessboard[cell2] = chessboard[cell1];
 	chessboard[cell1] = ".";
 	most_recent_move = [cell1, cell2];
+	
+	if is_actual_move: 
+		updated = false;
 	
 func castle(cell1: int, cell2: int) -> void:
 	update_history();
@@ -122,6 +130,7 @@ func castle(cell1: int, cell2: int) -> void:
 		var cell3 = Utility.vector_to_cell_index(Vector2(coord2.x, 7));
 		var cell4 = Utility.vector_to_cell_index(Vector2(coord2.x, coord2.y - 1));
 		normal_move(cell3, cell4, false);
+	updated = false;
 		
 func en_passant(cell1: int, cell2: int) -> void:
 	update_history(true);
@@ -132,119 +141,83 @@ func en_passant(cell1: int, cell2: int) -> void:
 	
 	var cell3 = Utility.vector_to_cell_index(coord3);
 	normal_move(cell3, cell3, false);
+	updated = false;
 	
 func promote(cell: int, s: String) -> void:
-	white_move = !white_move;
+	s = s.to_lower();
+	if (white_move):
+		s = s.to_upper();
 	chessboard[cell] = s;
+	
+	white_move = !white_move;
+	updated = false;
 	
 	
 # <-------- Handling move ends ---------->
 
 # <-------- Move Validator Start -------->
 
-func check_king_move(coord1: Vector2, coord2: Vector2, allow_special: bool = true) -> int: 
-	if Utility.is_king_distance(coord1, coord2): # normal move
-		return MOVE.Normal;
-	if (!allow_special):
-		return MOVE.Invalid;
-	# castling
-	if (coord1.x == coord2.x) && (abs(coord1.y - coord2.y) == 2):
-		var is_white = Utility.is_upper_case(chessboard[Utility.vector_to_cell_index(coord1)]);
-		if coord1.y > coord2.y: #castle to the 1st file
-			if (can_castle[int(is_white)][0] == 1) && check_rook_move(coord1, Vector2(coord1.x, 0)):
-				for i in range(coord2.y, coord1.y + 1):
-					if check_tile_attacked(Utility.vector_to_cell_index(Vector2(coord2.x, i)), !white_move):
-						return MOVE.Invalid;
-				return MOVE.Castle;
-		else: #castle to the 8th file
-			if (can_castle[int(is_white)][0] == 1) && check_rook_move(coord1, Vector2(coord1.x, 7)):
-				for i in range(coord1.y, coord2.y + 1):
-					if check_tile_attacked(Utility.vector_to_cell_index(Vector2(coord2.x, i)), !white_move):
-						return MOVE.Invalid;
-				return MOVE.Castle;
-	return MOVE.Invalid;
-	
-
-func check_knight_move(coord1: Vector2, coord2: Vector2) -> int:
-	if Utility.is_knight_distance(coord1, coord2):
-		return MOVE.Normal;
-	return MOVE.Invalid;
-	
-	
-func check_bishop_move(coord1: Vector2, coord2: Vector2) -> int:
-	if (coord1 == coord2):
-		return MOVE.Normal;
-	if Utility.is_bishop_distance(coord1, coord2):
-		var diff = Vector2(coord2.x - coord1.x, coord2.y - coord1.y);
-		var cardinality = abs(diff.x);
-		diff.x /= cardinality; diff.y /= cardinality;
-		var coord = coord1;
-		while(coord != coord2):
-			if coord != coord1:
-				var cur_cell = Utility.vector_to_cell_index(coord);
-				if (chessboard[cur_cell] != "."):
-					return MOVE.Invalid;
-			coord += diff;
-		return MOVE.Normal;
-	return MOVE.Invalid;
-		
-
-func check_rook_move(coord1: Vector2, coord2: Vector2) -> int:
-	if (coord1 == coord2):
-		return MOVE.Normal;
-	if Utility.is_rook_distance(coord1, coord2):
-		var diff = Vector2(coord2.x - coord1.x, coord2.y - coord1.y);
-		var cardinality = abs(diff.x + diff.y);
-		diff.x /= cardinality; diff.y /= cardinality;
-		var coord = coord1;
-		while(coord != coord2):
-			if coord != coord1:
-				var cur_cell = Utility.vector_to_cell_index(coord);
-				if (chessboard[cur_cell] != "."):
-					return MOVE.Invalid;
-			coord += diff;
-		return MOVE.Normal;
-	return MOVE.Invalid;
-	
-func check_queen_move(coord1: Vector2, coord2: Vector2) -> int:
-	if check_bishop_move(coord1, coord2) || check_rook_move(coord1, coord2):
-		return MOVE.Normal;
-	return MOVE.Invalid;
-		
-func check_pawn_move(coord1: Vector2, coord2: Vector2, allow_special:bool = true) -> int:
-	var cell1:int = Utility.vector_to_cell_index(coord1);
-	var cell2:int = Utility.vector_to_cell_index(coord2);
-	var is_white = Utility.is_upper_case(chessboard[cell1]);
-	# Move
-	if chessboard[cell2] == "." && Utility.is_pawn_distance(coord1, coord2) && check_rook_move(coord1, coord2): 
-		if ((coord1.x < coord2.x) != is_white):
-			return MOVE.Invalid;
-		var init_pos = 6 - int(is_white) * 5;
-		if (coord1.x != init_pos) && (abs(coord1.x - coord2.x) == 2):
-			return MOVE.Invalid;
-		return MOVE.Normal;
-	# Capture
-	if chessboard[cell2] != "." && check_bishop_move(coord1, coord2) && (Utility.chebyshev_distance(coord1, coord2) <= 1): 
-		if ((coord1.x < coord2.x) != is_white):
-			return MOVE.Invalid;
-		return MOVE.Normal;
-	# En passant
-	if (!allow_special):
-		return MOVE.Invalid;
-	if (most_recent_move.size() == 2) && (chessboard[most_recent_move[1]].to_lower() == "p") && (chessboard[most_recent_move[1]] != chessboard[cell1]):
-		var coord3 = Utility.int_to_cell_vector(most_recent_move[0]);
-		var coord4 = Utility.int_to_cell_vector(most_recent_move[1]);
-		if (Utility.chebyshev_distance(coord3, coord4) == 2):
-			if (Utility.manhattan_distance(coord1, coord4) == 1) && (coord1.x == coord4.x) && coord2 == Vector2((coord4.x + coord3.x) / 2, coord4.y):
-				return MOVE.EnPassant;
-	return MOVE.Invalid;
-	
 func check_tile_attacked(cell: int, opponent_side: bool) -> bool:
-	#Safe and simple, but slow
-	for i in range(0, 64):
-		if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == opponent_side):
-			if (validate_move_skeleton(i, cell, 0)): 
+	var cur_coord = Utility.int_to_cell_vector(cell);
+	var d_coord: Array[Vector2];
+	var d_int: Array[int];
+	
+	# check rook, bishop and queen
+	d_coord = [Vector2(1, 0), Vector2(0, 1), Vector2(0, -1), Vector2(-1, 0), Vector2(1, 1), Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1)];
+	d_int = [8, 1, -1, -8, 9, -9, 7, -7];
+	
+	for i in range(0, 8):
+		var antagonist = ["q", "r"];
+		if (i >= 4):
+			antagonist[1] = "b";
+		var coord = cur_coord+ d_coord[i];
+		var _cell = cell + d_int[i];
+		while(min(coord.x, coord.y) >= 0 && max(coord.x, coord.y) < 8):
+			if (chessboard[_cell] != ".") :
+				if (Utility.is_upper_case(chessboard[_cell]) != opponent_side):
+					break;
+				var cur = chessboard[_cell].to_lower();
+				if (antagonist.find(cur) != -1):
+					return true;
+				break;
+			coord += d_coord[i];
+			_cell += d_int[i];
+	
+	# check knight
+	d_coord = [Vector2(1, 2), Vector2(2, 1), Vector2(1, -2), Vector2(2, -1), Vector2(-1, 2), Vector2(-2, 1), Vector2(-1, -2), Vector2(-2, -1)];
+	d_int = [10, 17, 6, 15, -6, -15, -10, -17];
+	for i in range(0, d_coord.size()):
+		var coord = cur_coord + d_coord[i];
+		var _cell = cell + d_int[i];
+		if (min(coord.x, coord.y) >= 0 && max(coord.x, coord.y) < 8):
+			if (chessboard[_cell].to_lower() == "n") && (Utility.is_upper_case(chessboard[_cell]) == opponent_side):
 				return true;
+	
+	#check king
+	d_coord = [Vector2(-1, -1), Vector2(-1, 0), Vector2(-1, 1), Vector2(0, -1), Vector2(0, 1), Vector2(1, -1), Vector2(1, 0), Vector2(1, 1)];
+	d_int = [-9, -8, -7,  -1, 1, 7, 8, 9];
+	for i in range(0, d_coord.size()):
+		var coord = cur_coord + d_coord[i];
+		var _cell = cell + d_int[i];
+		if (min(coord.x, coord.y) >= 0 && max(coord.x, coord.y) < 8):
+			if (chessboard[_cell].to_lower() == "k") && (Utility.is_upper_case(chessboard[_cell]) == opponent_side):
+				return true;
+	
+	#check pawn
+	if opponent_side == false:
+		d_coord = [Vector2(1, -1), Vector2(1, 1)];
+		d_int = [7, 9];
+	else:
+		d_coord = [Vector2(-1, 1), Vector2(-1, -1)];
+		d_int = [-7, -9];
+		
+	for i in range(0, d_coord.size()):
+		var coord = cur_coord + d_coord[i];
+		var _cell = cell + d_int[i];
+		if (min(coord.x, coord.y) >= 0 && max(coord.x, coord.y) < 8):
+			if (chessboard[_cell].to_lower() == "p") && (Utility.is_upper_case(chessboard[_cell]) == opponent_side):
+				return true;
+	
 	return false;
 	
 func in_check(current_side: bool) -> bool:
@@ -253,88 +226,161 @@ func in_check(current_side: bool) -> bool:
 		cur = "k";
 	return check_tile_attacked(chessboard.find(cur), !current_side);
 
-func validate_move_skeleton(cell1: int, cell2: int, allow_special: bool = true) -> int:
-	if chessboard[cell1] == ".":
-		return MOVE.Invalid;
-	if (chessboard[cell2] != ".") && (Utility.is_upper_case(chessboard[cell1]) == Utility.is_upper_case(chessboard[cell2])):
-		return MOVE.Invalid;
-	
-	var cur = chessboard[cell1].to_lower();
-	var coord1 = Utility.int_to_cell_vector(cell1);
-	var coord2 = Utility.int_to_cell_vector(cell2);
-	
-	match cur:
-		"k":
-			return check_king_move(coord1, coord2, allow_special);
-		"q":
-			return check_queen_move(coord1, coord2);
-		"b":
-			return check_bishop_move(coord1, coord2);
-		"n":
-			return check_knight_move(coord1, coord2);
-		"r":
-			return check_rook_move(coord1, coord2);
-		"p":
-			var ans = check_pawn_move(coord1, coord2, allow_special);
-			if (ans == MOVE.Normal) && (coord2.x == 0 || coord2.x == 7):
-				ans = MOVE.Promote;
-			return ans;
-	return MOVE.Normal;
-	
-
-func validate_move(cell1: int, cell2: int) -> int: #validate_move, but perform check check
-	var ans = validate_move_skeleton(cell1, cell2);
-	if ans == MOVE.Invalid: #break early to save computation power
-		return MOVE.Invalid;
-	var tmp_board: ChessBoard = deep_copy();
-	if (ans == MOVE.Normal) || (ans == MOVE.Promote):
-		tmp_board.normal_move(cell1, cell2);
-		if (tmp_board.in_check(white_move)):
-			return MOVE.Invalid;
-		return ans;
-	if (ans == MOVE.EnPassant):
-		tmp_board.en_passant(cell1, cell2);
-		if (tmp_board.in_check(white_move)):
-			return MOVE.Invalid;
-		return MOVE.EnPassant;
-	if (ans == MOVE.Castle):
-		return ans;
-	return -1; # this will never happen, unless something really bad happen
-
-func find_valid_move_from_cell(cell1: int) -> bool:
-	for i in range(0, 64):
-		if (validate_move(cell1, i) != MOVE.Invalid):
-			return true;
-	return false;
-
-func generate_move_from_cell(cell1: int) -> Array:
-	var move_list: Array;
-	for i in range(0, 64):
-		if (validate_move(cell1, i) != MOVE.Invalid):
-			move_list.append(Utility.int_to_cell_vector(i));
-	return move_list;
-	
-
 func generate_move_type_from_cell(cell1: int) -> Array:
 	var move_list: Array;
-	for i in range(0, 64):
-		var cur = validate_move(cell1, i);
-		if (cur != MOVE.Invalid):
-			move_list.append([i, cur]);
+	var cur = chessboard[cell1].to_lower();
+	if (chessboard[cell1] == "."):
+		return move_list;
+	# Normal Move
+	if (cur == "b" || cur == "r" || cur == "q"):
+		var d_coord: Array[Vector2];
+		var d_int: Array[int];
+		if (cur == "r"):
+			d_coord = [Vector2(1, 0), Vector2(0, 1), Vector2(0, -1), Vector2(-1, 0)];
+			d_int = [8, 1, -1, -8];
+		if (cur == "b"):
+			d_coord = [Vector2(1, 1), Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1)];
+			d_int = [9, -9, 7, -7];
+		if (cur == "q"):
+			d_coord = [Vector2(1, 0), Vector2(0, 1), Vector2(0, -1), Vector2(-1, 0), Vector2(1, 1), Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1)];
+			d_int = [8, 1, -1, -8, 9, -9, 7, -7];
+			
+		for i in range(0, d_coord.size()):
+			var coord = Utility.int_to_cell_vector(cell1) + d_coord[i];
+			var cell2 = cell1 + d_int[i];
+			while(min(coord.x, coord.y) >= 0 && max(coord.x, coord.y) < 8):
+				if (chessboard[cell2] != ".") && (Utility.is_upper_case(chessboard[cell2]) == Utility.is_upper_case(chessboard[cell1])):
+					break;
+				move_list.append([cell2, MOVE.Normal]);
+				if (chessboard[cell2] != "."):
+					break;
+				coord += d_coord[i];
+				cell2 += d_int[i];
+				
+	if (cur == "k" || cur == "n"):
+		var d_coord: Array[Vector2];
+		var d_int: Array[int];
+		if (cur == "n"):
+			d_coord = [Vector2(1, 2), Vector2(2, 1), Vector2(1, -2), Vector2(2, -1), Vector2(-1, 2), Vector2(-2, 1), Vector2(-1, -2), Vector2(-2, -1)];
+			d_int = [10, 17, 6, 15, -6, -15, -10, -17];
+		if (cur == "k"):
+			d_coord = [Vector2(-1, -1), Vector2(-1, 0), Vector2(-1, 1), Vector2(0, -1), Vector2(0, 1), Vector2(1, -1), Vector2(1, 0), Vector2(1, 1)];
+			d_int = [-9, -8, -7, -1, 1, 7, 8, 9];
+			
+		for i in range(0, d_coord.size()):
+			var coord = Utility.int_to_cell_vector(cell1) + d_coord[i];
+			var cell2 = cell1 + d_int[i];
+			if (min(coord.x, coord.y) >= 0 && max(coord.x, coord.y) < 8):
+				if (chessboard[cell2] == ".") || (Utility.is_upper_case(chessboard[cell2]) != Utility.is_upper_case(chessboard[cell1])):
+					move_list.append([cell2, MOVE.Normal]);
+					
+	if (cur == "p"):
+		var d_coord: Array[Vector2];
+		var d_int: Array[int];
+		if (chessboard[cell1] == "P"):
+			d_coord = [Vector2(1, -1), Vector2(1, 1), Vector2(1, 0)];
+			d_int = [7, 9, 8];
+			if (cell1 / 8 == 1):
+				d_coord.append(Vector2(2, 0));
+				d_int.append(16);
+		else:
+			d_coord = [Vector2(-1, 1), Vector2(-1, -1), Vector2(-1, 0)];
+			d_int = [-7, -9, -8];
+			if (cell1 / 8 == 6):
+				d_coord.append(Vector2(-2, 0));
+				d_int.append(-16);
+		for i in range(0, d_coord.size()):
+			var coord = Utility.int_to_cell_vector(cell1) + d_coord[i];
+			var cell2 = cell1 + d_int[i];
+			if (min(coord.x, coord.y) >= 0 && max(coord.x, coord.y) < 8):
+				if (i < 2):
+					if (chessboard[cell2] != ".") && (Utility.is_upper_case(chessboard[cell2]) != Utility.is_upper_case(chessboard[cell1])):
+						if (coord.x == 0 || coord.x == 7):
+							move_list.append([cell2, MOVE.Promote]);
+						else:
+							move_list.append([cell2, MOVE.Normal]);
+					
+					#En passant:
+					if (chessboard[cell2] == "."):
+						if (most_recent_move.size() == 2) && (chessboard[most_recent_move[1]].to_lower() == "p") && (chessboard[most_recent_move[1]] != chessboard[cell1]):
+							var coord1 = Utility.int_to_cell_vector(cell1);
+							var coord2 = Utility.int_to_cell_vector(cell2);
+							var coord3 = Utility.int_to_cell_vector(most_recent_move[0]);
+							var coord4 = Utility.int_to_cell_vector(most_recent_move[1]);
+							if (Utility.chebyshev_distance(coord3, coord4) == 2):
+								if (Utility.manhattan_distance(coord1, coord4) == 1) && (coord1.x == coord4.x) && coord2 == Vector2((coord4.x + coord3.x) / 2, coord4.y):
+									move_list.append([cell2, MOVE.EnPassant]);
+				if (i >= 2):
+					if (chessboard[cell2] == "."):
+						if (coord.x == 0 || coord.x == 7):
+							move_list.append([cell2, MOVE.Promote]);
+						else:
+							move_list.append([cell2, MOVE.Normal]);
+					else:
+						break;
+							
+	if (cur == "k"):
+		var cell_is_white = Utility.is_upper_case(chessboard[cell1]);
+		var posX = 7;
+		if (cell_is_white):
+			posX = 0;
+		
+		if (can_castle[int(cell_is_white)][0] == 1): #castle to the left
+			var blocked:bool = false;
+			for i in range(1, 4):
+				if (chessboard[Utility.vector_to_cell_index(Vector2(posX, i))] != "."):
+					blocked = true;
+					break;
+			if (!blocked):
+				var attacked:bool = false;
+				for i in range(2, 5):
+					if (check_tile_attacked(Utility.vector_to_cell_index(Vector2(posX, i)), !cell_is_white)):
+						attacked = true;
+						break;
+				if (!attacked):
+					move_list.append([cell1 - 2, MOVE.Castle]);
+		if (can_castle[int(cell_is_white)][1] == 1): #castle to the right
+			var blocked:bool = false;
+			for i in range(5, 7):
+				if (chessboard[Utility.vector_to_cell_index(Vector2(posX, i))] != "."):
+					blocked = true;
+			if (!blocked):
+				var attacked:bool = false;
+				for i in range(4, 7):
+					if (check_tile_attacked(Utility.vector_to_cell_index(Vector2(posX, i)), !cell_is_white)):
+						attacked = true;
+						break;
+				if (!attacked):
+					move_list.append([cell1 + 2, MOVE.Castle]);
 	return move_list;
 	
-func generate_move() -> Array:
-	var move_list: Array;
+func generate_move() -> void:
+	if updated:
+		return;
+	updated = true;
+	available_move.clear();
 	for i in range(0, 64):
 		if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == white_move):
 			var current_list: Array = generate_move_type_from_cell(i);
 			for k in current_list:
+#				var tmp_board = deep_copy();
+#				if (k[1] == MOVE.Normal || k[1] == MOVE.Promote):
+#					tmp_board.normal_move(i, k[0]);
+#				if (k[1] == MOVE.Castle):
+#					tmp_board.castle(i, k[0]);
+#				if (k[1] == MOVE.EnPassant):
+#					tmp_board.en_passant(i, k[0]);
+#				if (tmp_board.in_check(white_move)):
+#					continue;
 				if (k[1] != MOVE.Promote):
-					move_list.append([i, k[0], k[1]]);
+					available_move.append([i, k[0], k[1]]);
 				else:
 					for j in range(0, 4):
-						move_list.append([i, k[0], k[1], j]);
-	return move_list;
+						available_move.append([i, k[0], k[1], j]);
+						
+func has_available_move() -> bool:
+	generate_move();
+	return available_move.size() > 0;
 
 # <-------- Move Validator End -------->
 
@@ -342,17 +388,15 @@ func generate_move() -> Array:
 
 func checkmated(current_side: int) -> bool:
 	if in_check(current_side):
-		for i in range(0, 64): 
-			if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == bool(current_side)) && find_valid_move_from_cell(i):
-				return false;
+		if (has_available_move()):
+			return false;
 		return true;
 	return false;
 	
 func stalemated(current_side: int) -> bool:
 	if !in_check(current_side):
-		for i in range(0, 64): 
-			if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == bool(current_side)) && find_valid_move_from_cell(i):
-				return false;
+		if (has_available_move()):
+			return false;
 		return true;
 	return false;
 	

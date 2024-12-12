@@ -366,14 +366,12 @@ func handle_start_game():
 	chessboard.reset_board();
 	chessboard.start_game();
 	
-	
-	for i in range(1, 4):
+	for i in range(1, 5):
 		var start_time = Time.get_ticks_msec();
 		var ans = chess_engine.count_move(chessboard, i);
 		var end_time = Time.get_ticks_msec();
 		print("Test ", i, ": ", i, " ", ans, ". Time elapsed: ", end_time - start_time, " ms!");
-	
-	
+
 	initialRender();
 	renderBoard(chessboard);
 	play_sound("NewGame");
