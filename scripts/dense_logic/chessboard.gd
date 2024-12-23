@@ -5,17 +5,18 @@ class_name ChessBoard;
 
 enum MOVE {Invalid, Normal, Castle, EnPassant, Promote};
 
-var init_state;
-var chessboard: Array;
+var init_state: String;
+var chessboard: PackedStringArray;
 var can_castle: Array[Array];
 var white_move: bool;
 var game_continuing: bool = false;
-var board_history_hash: Array;
+var board_history_hash: Array[int];
 var fifty_move_counter: int;
 
 var most_recent_move: Array[int];
 var available_move: Array;
 var updated: bool = false;
+var castled: Array[int] = [0, 0];
 
 # <-------- Simple stuff starts ---------->
 
@@ -41,6 +42,7 @@ func reset_board() -> void:
 	most_recent_move.clear();
 	fifty_move_counter = 100;
 	board_history_hash.clear();
+	castled = [0, 0];
 	
 	can_castle = [[1, 1], [1, 1]];
 	updated = false;
@@ -89,14 +91,15 @@ func deep_copy() -> ChessBoard:
 	tmp.fifty_move_counter = fifty_move_counter;
 	tmp.updated = false;
 	
-	tmp.chessboard = chessboard.duplicate(true);
+	tmp.chessboard = chessboard.duplicate();
 	tmp.can_castle = can_castle.duplicate(true);
+	tmp.castled = castled.duplicate(true);
 	tmp.board_history_hash = board_history_hash.duplicate(true);
 	tmp.most_recent_move = most_recent_move.duplicate(true);
 	
 	return tmp;
 
-# <-------- Simple stuff starts ---------->
+# <-------- Simple stuff ends ---------->
 
 # <-------- Handling move starts ---------->
 	
@@ -108,8 +111,10 @@ func normal_move(cell1: int, cell2: int, is_actual_move: bool = true) -> void:
 	
 	if chessboard[cell1] == 'K':
 		can_castle[1] = [0, 0];
+		castled[1] = 1;
 	if chessboard[cell1] == 'k':
 		can_castle[0] = [0, 0];
+		castled[0] = 1;
 	chessboard[cell2] = chessboard[cell1];
 	chessboard[cell1] = ".";
 	most_recent_move = [cell1, cell2];
@@ -363,21 +368,22 @@ func generate_move() -> void:
 		if (chessboard[i] != ".") && (Utility.is_upper_case(chessboard[i]) == white_move):
 			var current_list: Array = generate_move_type_from_cell(i);
 			for k in current_list:
-#				var tmp_board = deep_copy();
-#				if (k[1] == MOVE.Normal || k[1] == MOVE.Promote):
-#					tmp_board.normal_move(i, k[0]);
-#				if (k[1] == MOVE.Castle):
-#					tmp_board.castle(i, k[0]);
-#				if (k[1] == MOVE.EnPassant):
-#					tmp_board.en_passant(i, k[0]);
-#				if (tmp_board.in_check(white_move)):
-#					continue;
+				var tmp_board = deep_copy();
+				if (k[1] == MOVE.Normal || k[1] == MOVE.Promote):
+					tmp_board.normal_move(i, k[0]);
+				if (k[1] == MOVE.Castle):
+					tmp_board.castle(i, k[0]);
+				if (k[1] == MOVE.EnPassant):
+					tmp_board.en_passant(i, k[0]);
+				if (tmp_board.in_check(white_move)):
+					continue;
 				if (k[1] != MOVE.Promote):
 					available_move.append([i, k[0], k[1]]);
 				else:
 					for j in range(0, 4):
 						available_move.append([i, k[0], k[1], j]);
 						
+
 func has_available_move() -> bool:
 	generate_move();
 	return available_move.size() > 0;
@@ -425,7 +431,7 @@ func stupid_draw_check() -> String:
 		return fifty_move_rule;
 		
 	# If a board state is repeated 3 times, draw
-	var cnt= 0; var cur_hash = hash(chessboard.duplicate(true));
+	var cnt= 0; var cur_hash = hash(chessboard.duplicate());
 	for i in board_history_hash:
 		if (i == cur_hash):
 			cnt += 1;

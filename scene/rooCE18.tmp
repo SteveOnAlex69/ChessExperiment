@@ -1,8 +1,9 @@
-[gd_scene load_steps=14 format=3 uid="uid://dvjr0rf6ciart"]
+[gd_scene load_steps=15 format=3 uid="uid://dvjr0rf6ciart"]
 
 [ext_resource type="Script" path="res://scripts/root.gd" id="1_wafjg"]
 [ext_resource type="Texture2D" uid="uid://c8171s1yn26la" path="res://resource_packs/image/chess_board.png" id="2_e5n4u"]
 [ext_resource type="PackedScene" uid="uid://be072dmcpimuf" path="res://scene/pieces.tscn" id="2_h5j5n"]
+[ext_resource type="Script" path="res://scripts/dense_logic/CsharpTest.cs" id="3_mdlyt"]
 [ext_resource type="AudioStream" uid="uid://ctygtnay057fs" path="res://resource_packs/sound/piece_move.mp3" id="4_mnwkr"]
 [ext_resource type="AudioStream" uid="uid://cvv8jlvh7axfy" path="res://resource_packs/sound/piece_capture.mp3" id="5_lg3vx"]
 [ext_resource type="PackedScene" uid="uid://do5ti1a4mm8nb" path="res://scene/selected_overlay.tscn" id="6_tcrqt"]
@@ -22,6 +23,7 @@ z_index = -1
 position = Vector2(640, 380)
 scale = Vector2(1.05, 1.05)
 texture = ExtResource("2_e5n4u")
+script = ExtResource("3_mdlyt")
 
 [node name="Pieces" parent="." instance=ExtResource("2_h5j5n")]
 visible = false

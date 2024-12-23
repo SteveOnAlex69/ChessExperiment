@@ -12,18 +12,25 @@ config_version=5
 
 config/name="Chess"
 run/main_scene="res://scene/root.tscn"
-config/features=PackedStringArray("4.0", "Mobile")
+config/features=PackedStringArray("4.3", "C#", "Mobile")
 config/icon="res://icon.svg"
 
 [autoload]
 
 Global="*res://scripts/global.gd"
+ChessMove="*res://scripts/dense_logic/ChessMove.cs"
+CsharpTest="*res://scripts/dense_logic/CsharpTest.cs"
+Utility="*res://scripts/Utility.cs"
 
 [display]
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/size/resizable=false
+
+[dotnet]
+
+project/assembly_name="Chess"
 
 [rendering]
 

@@ -56,6 +56,18 @@ func promote(cell: int, s: String) -> void:
 	chessboard.promote(cell, s);
 	board_history.append(chessboard.deep_copy());
 	
+func do_move(i: Array) -> void:
+	match i[2]:
+		1:
+			normal_move(i[0], i[1]);
+		2:
+			castle(i[0], i[1]);
+		3:
+			en_passant(i[0], i[1]);
+		4:
+			normal_move(i[0], i[1], 0);
+			promote(i[1], ["q", "r", "b", "n"][i[3]]);
+	
 func in_check(current_side: bool) -> bool:
 	return chessboard.in_check(current_side);
 
@@ -78,6 +90,10 @@ func generate_move_from_cell(cell1: int) -> Array:
 func generate_move() -> Array:
 	chessboard.generate_move();
 	return chessboard.available_move;
+	
+
+func generate_pseudo_legal_move() -> Array:
+	return chessboard.generate_pseudo_legal_move();
 	
 func roll_back() -> bool:
 	if (chessboard.is_continuing() == false) || (board_history.size() <= 1):

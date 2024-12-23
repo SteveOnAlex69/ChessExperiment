@@ -1,8 +1,6 @@
 extends Node2D
 
-enum GAMEMODE {PvP, PvE, EvP, EvE};
-
-var chessboard = ChessBoardWrapper.new("RNBQKBNRPPPPPPPP................................pppppppprnbqkbnr");
+var chessboard = ChessBoardWrapper.new(Utility.fein("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
 const ALLOWED_DISTANCE = 35;
 
 var chess_piece = preload("res://scene/pieces.tscn");
@@ -14,7 +12,7 @@ var hint_overlay_list: Array;
 var starting_point = Vector2(376, 116);
 var spacing:float = 75.5;
 var chess_piece_instance_list = [];
-var cur_gamemode: int = GAMEMODE.PvP;
+var can_manual:Array[int] = [1, 1];
 
 var flipped_board = false;
 var selected_overlay = selected_overlay_scene.instantiate();
@@ -23,8 +21,8 @@ var dark_overlay = selected_overlay_scene.instantiate();
 var promotion_gui = promotion_gui_scene.instantiate();
 var promotion_pieces: Array;
 
-
-var chess_engine: SickDuckV0 = SickDuckV0.new();
+var chess_engine_white: SickDuckV0 = SickDuckV0.new();
+var chess_engine_black: SickDuckV0 = SickDuckV0.new();
 
 # <------------------------- Utility function start ------------------------->
 
@@ -290,6 +288,8 @@ func _input(event):
 	if event is InputEventMouseButton and event.pressed:
 		if chessboard.is_continuing() == false:
 			return;
+		if can_manual[int(chessboard.is_white_move())] == 0:
+			return;
 		var mouse_pos = get_viewport().get_mouse_position();
 		if promotion_pieces.size() == 4: # are opening promotion box
 			var chosen_piece = "None";
@@ -305,9 +305,13 @@ func _input(event):
 
 # <------------------------- Handle Input  ------------------------->
 
-
+#var brah = ChessBoardWrapper.new(CsharpTest.fein("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
 # Called when the node enters the scene tree for the first time.
 func _ready():
+	var cur = CsharpTest.new_object(Utility.fein("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
+	print(cur.init_state);
+	CsharpTest.sigma(Vector2(1, -1));
+	
 	initialRender();
 	renderBoard(chessboard);
 	initializeOverlay();
@@ -328,7 +332,46 @@ func _ready():
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
+var engine_check_timer = 0;
+const DELAY = 0.1
+var calculating:bool = false;
 func _process(delta):
+	engine_check_timer += delta;
+	if (engine_check_timer >= DELAY):
+		engine_check_timer = 0;
+		if !calculating && chessboard.is_continuing() && can_manual[int(chessboard.is_white_move())] == 0:
+			var start_time = Time.get_ticks_msec();
+			var cur;
+			calculating = true;
+			if (chessboard.is_white_move()):
+				cur = chess_engine_white.next_move(chessboard);
+			else:
+				cur = chess_engine_black.next_move(chessboard);
+			calculating = false;
+			var end_time = Time.get_ticks_msec();
+			print("Time elapsed: ", end_time - start_time, "ms!");
+			
+			var what_to_play = "None";
+			match cur[2]:
+				1:
+					if (chessboard.get_cell(cur[1]) == "."):
+						what_to_play = "Move";
+					else:
+						what_to_play = "Capture";
+				2: 
+					what_to_play = "Castle";
+				3: 
+					what_to_play = "Capture";
+				4:
+					what_to_play = "Promote";
+			chessboard.do_move(cur);
+			if handle_check():
+				what_to_play = "Check";
+			play_sound(what_to_play);
+			renderBoard(chessboard);
+			check_game_ended();
+			
+			
 	if promotion_pieces.size() == 4:
 		var mouse_pos = get_viewport().get_mouse_position();
 		var found: bool = false;
@@ -365,10 +408,10 @@ func check_game_ended():
 func handle_start_game():
 	chessboard.reset_board();
 	chessboard.start_game();
-	
-	for i in range(1, 5):
+#
+	for i in range(1, 4):
 		var start_time = Time.get_ticks_msec();
-		var ans = chess_engine.count_move(chessboard, i);
+		var ans = chess_engine_white.count_move(chessboard, i);
 		var end_time = Time.get_ticks_msec();
 		print("Test ", i, ": ", i, " ", ans, ". Time elapsed: ", end_time - start_time, " ms!");
 
@@ -403,16 +446,32 @@ func _on_undo_move_button_down():
 
 
 func _on_pvp_button_down():
-	if (cur_gamemode == GAMEMODE.PvP):
+	if (can_manual == [1, 1]):
 		return;
-	cur_gamemode = GAMEMODE.PvP;
+	can_manual = [1, 1];
 	handle_end_game("Press New Game to Start", chessboard.is_continuing());
 	chessboard.reset_board();
 
 
 func _on_pve_button_down():
-	if (cur_gamemode == GAMEMODE.PvE):
+	if (can_manual == [0, 1]):
 		return;
-	cur_gamemode = GAMEMODE.PvE;
+	can_manual = [0, 1];
+	handle_end_game("Press New Game to Start", chessboard.is_continuing());
+	chessboard.reset_board();
+
+
+func _on_evp_button_down():
+	if (can_manual == [1, 0]):
+		return;
+	can_manual = [1, 0];
+	handle_end_game("Press New Game to Start", chessboard.is_continuing());
+	chessboard.reset_board();
+
+
+func _on_eve_button_down():
+	if (can_manual == [0, 0]):
+		return;
+	can_manual = [0, 0];
 	handle_end_game("Press New Game to Start", chessboard.is_continuing());
 	chessboard.reset_board();
