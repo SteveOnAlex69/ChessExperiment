@@ -1,6 +1,6 @@
 extends Node2D
 
-var chessboard = ChessBoardWrapper.new(Utility.fein("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
+var chessboard = ChessBoardWrapper.new_object(Utility.fein("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
 const ALLOWED_DISTANCE = 35;
 
 var chess_piece = preload("res://scene/pieces.tscn");
@@ -21,8 +21,8 @@ var dark_overlay = selected_overlay_scene.instantiate();
 var promotion_gui = promotion_gui_scene.instantiate();
 var promotion_pieces: Array;
 
-var chess_engine_white: SickDuckV0 = SickDuckV0.new();
-var chess_engine_black: SickDuckV0 = SickDuckV0.new();
+var chess_engine_white: SickDuckV0 = SickDuckV0.new_object();
+var chess_engine_black: SickDuckV0 = SickDuckV0.new_object();
 
 # <------------------------- Utility function start ------------------------->
 
@@ -173,7 +173,7 @@ func handle_check() -> bool:
 func handle_normal_move(cell1: int, cell2: int):
 	var is_capture = chess_piece_instance_list[cell2].current_piece != ".";
 	
-	chessboard.normal_move(cell1, cell2);
+	chessboard.normal_move(cell1, cell2, true);
 	renderBoard(chessboard);
 	update_selected_cell("");
 	
@@ -308,8 +308,6 @@ func _input(event):
 #var brah = ChessBoardWrapper.new(CsharpTest.fein("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	var cur = CsharpTest.new_object(Utility.fein("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
-	print(cur.init_state);
 	CsharpTest.sigma(Vector2(1, -1));
 	
 	initialRender();
@@ -333,7 +331,7 @@ func _ready():
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 var engine_check_timer = 0;
-const DELAY = 0.1
+const DELAY = 0.01
 var calculating:bool = false;
 func _process(delta):
 	engine_check_timer += delta;
@@ -352,9 +350,9 @@ func _process(delta):
 			print("Time elapsed: ", end_time - start_time, "ms!");
 			
 			var what_to_play = "None";
-			match cur[2]:
+			match cur.get_move_type():
 				1:
-					if (chessboard.get_cell(cur[1]) == "."):
+					if (chessboard.get_cell(cur.get_move_des()) == "."):
 						what_to_play = "Move";
 					else:
 						what_to_play = "Capture";
@@ -408,12 +406,12 @@ func check_game_ended():
 func handle_start_game():
 	chessboard.reset_board();
 	chessboard.start_game();
-#
-	for i in range(1, 4):
-		var start_time = Time.get_ticks_msec();
-		var ans = chess_engine_white.count_move(chessboard, i);
-		var end_time = Time.get_ticks_msec();
-		print("Test ", i, ": ", i, " ", ans, ". Time elapsed: ", end_time - start_time, " ms!");
+
+	#for i in range(1, 2):
+		#var start_time = Time.get_ticks_usec();
+		#var ans = chess_engine_white.count_move(chessboard, i);
+		#var end_time = Time.get_ticks_usec();
+		#print("Test ", i, ": ", ans, ". Time elapsed: ", end_time - start_time, " microseconds!");
 
 	initialRender();
 	renderBoard(chessboard);
