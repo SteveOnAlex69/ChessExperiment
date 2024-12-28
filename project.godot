@@ -18,10 +18,9 @@ config/icon="res://icon.svg"
 [autoload]
 
 Global="*res://scripts/global.gd"
-ChessMove="*res://scripts/dense_logic/ChessMove.cs"
+ChessMoveClass="*res://scripts/dense_logic/ChessMoveClass.cs"
 Utility="*res://scripts/Utility.cs"
 ChessBoard="*res://scripts/dense_logic/ChessBoard.cs"
-ChessBoardUpdate="*res://scripts/dense_logic/ChessBoardUpdate.cs"
 ChessBoardWrapper="*res://scripts/dense_logic/ChessBoardWrapper.cs"
 CsharpTest="*res://scripts/dense_logic/CsharpTest.cs"
 SickDuckV0="*res://scripts/engines/SickDuckV0.cs"

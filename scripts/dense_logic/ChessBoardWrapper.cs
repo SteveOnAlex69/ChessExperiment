@@ -1,8 +1,61 @@
 using Godot;
 using System;
+using System.Numerics;
 using System.Text;
 using System.Collections.Generic;
 
+public struct ChessMove{
+	private int val;
+	public ChessMove(int _start, int _des, int _move_type, int _promote_into = (int)0){
+		val = _start + (_des << 6) + (_move_type << 12) + (_promote_into << 14);
+	}
+	public ChessMove(int _val){
+		val = _val;
+	}
+	
+	public int get_move_start(){
+		return val & ((1 << 6)-1);
+	}
+	public int get_move_des(){
+		return (val >> 6) & ((1 << 6)-1);
+	}
+	public int get_move_type(){
+		return (val >> 12) & ((1 << 3)-1);
+	}
+	public int get_promote_type(){
+		return (val >> 14);
+	}
+	public int get_val(){
+		return val;
+	}
+}
+
+struct ChessBoardUpdate{
+	int val;
+	public ChessBoardUpdate(ChessBoard board, ChessMove last, char c, bool pawn = false){
+		val = 0;
+		for(int i = 0; i < 2; ++i) {
+			for(int j = 0; j < 2; ++j) if (board.can_castle[i, j])
+				val += 1 << (i * 2 + j);
+		}
+		val += (last.get_val() << 4);
+		val += ((int)c) << 20;
+		if (pawn) val += 1 << 28;
+	}
+	
+	public int get_can_castle(){
+		return val & ((1 << 4) - 1);
+	}
+	public bool get_was_pawn(){
+		return (val >> 28) == 1;
+	}
+	public ChessMove get_last_move(){
+		return new ChessMove((val >> 4) & ((1 << 16) - 1));
+	}
+	public char get_captured_cell(){
+		return (char)((val >> 20) & ((1 << 8) - 1));
+	}
+}
 
 public partial class ChessBoardWrapper : Node
 {
@@ -24,6 +77,10 @@ public partial class ChessBoardWrapper : Node
 		cur.init_state = starting;
 		cur.chessboard = ChessBoard.new_object(starting);
 		cur.board_history = new List<ChessBoardUpdate>();
+		cur.board_history.Capacity = 3000;
+		
+		GD.Print(System.Runtime.InteropServices.Marshal.SizeOf(typeof(ChessMove)));
+		GD.Print(System.Runtime.InteropServices.Marshal.SizeOf(typeof(ChessBoardUpdate)));
 		return cur;
 	}
 	public void reset_board(){
@@ -46,33 +103,26 @@ public partial class ChessBoardWrapper : Node
 		return chessboard.get_most_recent_move(i);
 	}
 	public void normal_move(int cell1, int cell2, bool is_actual_move = true){
-		ChessBoardUpdate cur = new ChessBoardUpdate(chessboard);
-		cur.add_cell(cell1, chessboard.get_cell(cell1));
-		cur.add_cell(cell2, chessboard.get_cell(cell2));
+		bool is_porn = (chessboard.get_cell(cell1) == 'p') || (chessboard.get_cell(cell1) == 'P');
+		ChessBoardUpdate cur = 
+			new ChessBoardUpdate(chessboard, new ChessMove(cell1, cell2, 0), 
+			chessboard.get_cell(cell2), is_porn);
 		board_history.Add(cur);
 		
 		chessboard.normal_move(cell1, cell2, is_actual_move);
 	}
 	public void castle(int cell1, int cell2){
-		ChessBoardUpdate cur = new ChessBoardUpdate(chessboard);
-		int l = 0, r = 4;
-		if (cell1 < cell2) {
-			l = 4; r = 7;
-		}
-		int poo = cell1 - cell1 % 8;
-		for(int i = l; i <= r; ++i){
-			cur.add_cell(poo + i, chessboard.get_cell(poo + i));
-		}
+		ChessBoardUpdate cur = 
+			new ChessBoardUpdate(chessboard, new ChessMove(cell1, cell2, 1), '.');
 		board_history.Add(cur);
 		
 		chessboard.castle(cell1, cell2);
 	}
 	public void en_passant(int cell1, int cell2){
-		ChessBoardUpdate cur = new ChessBoardUpdate(chessboard);
 		int cell3 = (cell1 - cell1 % 8) + (cell2 % 8);
-		cur.add_cell(cell1, chessboard.get_cell(cell1));
-		cur.add_cell(cell2, chessboard.get_cell(cell2));
-		cur.add_cell(cell3, chessboard.get_cell(cell3));
+		ChessBoardUpdate cur = 
+			new ChessBoardUpdate(chessboard, 
+			new ChessMove(cell1, cell2, 2), '.');
 		board_history.Add(cur);
 		
 		chessboard.en_passant(cell1, cell2);
@@ -82,21 +132,30 @@ public partial class ChessBoardWrapper : Node
 	}
 	public void do_move(ChessMove i){
 		switch (i.get_move_type()){
-			case 1:
+			case 0:
 				normal_move(i.get_move_start(), i.get_move_des());
 				break;
-			case 2:
+			case 1:
 				castle(i.get_move_start(), i.get_move_des());
 				break;
-			case 3:
+			case 2:
 				en_passant(i.get_move_start(), i.get_move_des());
 				break;
-			case 4:
+			case 3:
 				string[] gang = new string[]{"q", "r", "b", "n"};
 				normal_move(i.get_move_start(), i.get_move_des(), false);
 				promote(i.get_move_des(), gang[i.get_promote_type()]);
 				break;
 		}
+	}
+	public void do_move(ChessMoveClass chessmove){
+		int start = chessmove.get_move_start();
+		int des = chessmove.get_move_des();
+		int move_type = chessmove.get_move_type();
+		int promote_into = chessmove.get_promote_type();
+		ChessMove cur = 
+			new ChessMove(start, des, move_type, promote_into);
+		do_move(cur);
 	}
 	
 	public bool in_check(bool current_side){
@@ -121,43 +180,139 @@ public partial class ChessBoardWrapper : Node
 
 	public int validate_move(int cell1, int cell2){
 		chessboard.generate_move();
-		foreach (ChessMove i in chessboard.available_move)
-			if (i.get_move_start() == cell1 && i.get_move_des() == cell2)
-				return i.get_move_type();
-		return 0;
+		for(int i = 0; i < 4; ++i) {
+			ulong cur = chessboard.possible_move[i,cell1];
+			cur >>= cell2;
+			if (cur % 2 == 1) return i;
+		}
+		return -1;
 	}
 		
 	public Godot.Collections.Array generate_move_from_cell(int cell1){
 		chessboard.generate_move();
 		Godot.Collections.Array ans = new Godot.Collections.Array();
-		foreach (ChessMove i in chessboard.available_move)
-			if (i.get_move_start() == cell1)
-				if ((i.get_move_type() != 4) || (i.get_promote_type() == 0))
-					ans.Add(Utility.int_to_cell_vector(i.get_move_des()));
+		for(int i = 0; i < 4; ++i){
+			ulong cur = chessboard.possible_move[i, cell1];
+			for(int j = 0; j < 64; ++j){
+				if (cur % 2 == 1) ans.Add(Utility.int_to_cell_vector(j));
+				cur >>= 1;
+			}
+		}
+		return ans;
+	}
+	
+	public int count_possible_move(){
+		chessboard.generate_move();
+		int ans = 0;
+		for(int i = 0; i < 4; ++i){
+			ulong ally_pieces = chessboard.ally_pieces;
+			while(ally_pieces > 0) {
+				int j = BitOperations.TrailingZeroCount(ally_pieces);
+				ally_pieces -= ((ulong)1 << j);
+				ulong cur = chessboard.possible_move[i, j];
+				while(cur > 0){
+					int k = BitOperations.TrailingZeroCount(cur);
+					cur -= (((ulong)1) << k);
+					
+					if (i < 3)
+						ans++;
+					else ans += 4;
+				}
+			}
+		}
 		return ans;
 	}
 		
 	public List<ChessMove> generate_move(){
 		chessboard.generate_move();
-		return chessboard.available_move;
+		
+		List<ChessMove> ans = new List<ChessMove>();
+		ans.Capacity = 250;
+		for(int i = 0; i < 4; ++i) {
+			ulong ally_pieces = chessboard.ally_pieces;
+			
+			while(ally_pieces > 0) {
+				int j = BitOperations.TrailingZeroCount(ally_pieces);
+				ally_pieces -= ((ulong)1 << j);
+				ulong cur = chessboard.possible_move[i, j];
+				while(cur > 0){
+					int k = BitOperations.TrailingZeroCount(cur);
+					cur -= (((ulong)1) << k);
+					
+					if (i < 3){
+						ans.Add(new ChessMove(j, k, i));
+					}
+					else {
+						for(int t = 0; t < 4; ++t)
+							ans.Add(new ChessMove(j, k, i, t));
+					}
+				}
+			}
+		}
+		
+		return ans;
+	}
+	
+	private void undo_move(ChessBoardUpdate cur){
+		int can_castle = cur.get_can_castle();
+		for(int i = 0; i < 2; ++i) {
+			for(int j = 0; j < 2; ++j){
+				int cu_bit = (can_castle >> (i * 2 + j)) & 1;
+				chessboard.can_castle[i, j] = (cu_bit == 1) ;
+			}
+		}
+		ChessMove last_move = cur.get_last_move();
+		int cell1 = last_move.get_move_start(), cell2 = last_move.get_move_des(), 
+			type = last_move.get_move_type();
+		bool was_pawn = cur.get_was_pawn();
+		char captured_cell = cur.get_captured_cell();
+		switch(type){
+			case 0:
+				chessboard.set_cell(cell1, chessboard.get_cell(cell2));
+				chessboard.set_cell(cell2, captured_cell);
+				if (was_pawn){
+					char cell1_piece = 'P';
+					if (char.IsLower(chessboard.get_cell(cell1)))
+						cell1_piece = 'p';
+					chessboard.set_cell(cell1, cell1_piece);
+				}
+				break;
+			case 1:
+				if (cell2 < cell1){ // castle to the left
+					chessboard.set_cell(cell1 - 4, chessboard.get_cell(cell2+1));
+					chessboard.set_cell(cell1, chessboard.get_cell(cell2));
+					chessboard.set_cell(cell2, '.');
+					chessboard.set_cell(cell2+1, '.');
+				}
+				else{
+					chessboard.set_cell(cell1 + 3, chessboard.get_cell(cell2-1));
+					chessboard.set_cell(cell1, chessboard.get_cell(cell2));
+					chessboard.set_cell(cell2, '.');
+					chessboard.set_cell(cell2-1, '.');
+				}
+				break;
+			case 2:
+				chessboard.set_cell(cell1, chessboard.get_cell(cell2));
+				chessboard.set_cell(cell2, captured_cell);
+				int cell3 = cell1 - cell1 % 8 + cell2 % 8;
+				char cell3_piece = 'P';
+				if (char.IsUpper(chessboard.get_cell(cell1)))
+					cell3_piece = 'p';
+				chessboard.set_cell(cell3, cell3_piece);
+				break;
+		}
 	}
 		
 	public bool roll_back(){
 		if (chessboard.is_continuing() == false || board_history.Count == 0)
 			return false;
-		ChessBoardUpdate cur = board_history[board_history.Count - 1];
-		for(int i = 0; i < 2; ++i) {
-			for(int j = 0; j < 2; ++j) chessboard.can_castle[i, j] = cur.can_castle[i, j];
-			chessboard.castled[i] = cur.castled[i];
-		}
-		for(int i = 0; i < cur.size(); ++i){
-			chessboard.set_cell(cur.get_cell_index(i), cur.get_cell_content(i));
-		}
-		board_history.RemoveAt(board_history.Count - 1);
-		
 		chessboard.white_move = !chessboard.white_move;
 		chessboard.turn_off_update();
 		chessboard.pop_back_history();
+		
+		undo_move(board_history[board_history.Count - 1]);
+		board_history.RemoveAt(board_history.Count - 1);
+		
 		return true;
 	}
 // <------------------------ Literally wrapper ends ------------------------>
@@ -188,9 +343,5 @@ public partial class ChessBoardWrapper : Node
 				return ans;
 			}
 		}
-	}
-		
-	public static void sigma(Vector2 ass){
-		GD.Print("Hello\n");
 	}
 }

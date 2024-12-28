@@ -12,21 +12,20 @@ public partial class SickDuckV0 : Node
 		return cur;
 	}
 	
-	public ChessMove next_move(ChessBoardWrapper chessboard){
+	public ChessMoveClass next_move(ChessBoardWrapper chessboard){
 		List<ChessMove> move_list = new List<ChessMove>(chessboard.generate_move());
 		Random rng = new Random();
-		return move_list[rng.Next(0, move_list.Count)];
+		return new ChessMoveClass(move_list[rng.Next(0, move_list.Count)]);
 	}
 	
 	public int count_move(ChessBoardWrapper chessboard, int depth){
 		if (depth == 0) return 1;
-		if (chessboard.stupid_draw_check() != "None") {
+		if (chessboard.stupid_draw_check() != "None") 
 			return 1;
-		}
+		if (depth == 1) return chessboard.count_possible_move();
+		
 		int ans = 0;
-
-		List<ChessMove> move_list = new List<ChessMove>(chessboard.generate_move());
-		if (depth == 1) return move_list.Count;
+		List<ChessMove> move_list = chessboard.generate_move();
 		foreach (ChessMove i in move_list){
 			chessboard.do_move(i);
 			ans += count_move(chessboard, depth - 1);
@@ -34,9 +33,5 @@ public partial class SickDuckV0 : Node
 		}
 		move_list.Clear();
 		return ans;
-	}
-		
-	public static void sigma(Vector2 ass){
-		GD.Print("Hello\n");
 	}
 }

@@ -266,13 +266,13 @@ func handling_mouse_press(mouse_pos: Vector2):
 		if (cur_signal.size() > 0):
 			var cell1 = cur_signal[1]; var cell2 = cur_signal[2];
 			match cur_signal[0]:
-				1:
+				0:
 					handle_normal_move(cell1, cell2);
-				2: 
+				1: 
 					handle_castle(cell1, cell2);
-				3:
+				2:
 					handle_enpassant(cell1, cell2);
-				4:
+				3:
 					handle_promotion(cell1, cell2);
 		update_selected_cell(chessboard.selected_cell);
 	else: #cancel selected cell if clicked outside the chessboard
@@ -351,16 +351,16 @@ func _process(delta):
 			
 			var what_to_play = "None";
 			match cur.get_move_type():
-				1:
+				0:
 					if (chessboard.get_cell(cur.get_move_des()) == "."):
 						what_to_play = "Move";
 					else:
 						what_to_play = "Capture";
-				2: 
+				1: 
 					what_to_play = "Castle";
-				3: 
+				2: 
 					what_to_play = "Capture";
-				4:
+				3:
 					what_to_play = "Promote";
 			chessboard.do_move(cur);
 			if handle_check():
@@ -407,11 +407,11 @@ func handle_start_game():
 	chessboard.reset_board();
 	chessboard.start_game();
 
-	#for i in range(1, 2):
-		#var start_time = Time.get_ticks_usec();
-		#var ans = chess_engine_white.count_move(chessboard, i);
-		#var end_time = Time.get_ticks_usec();
-		#print("Test ", i, ": ", ans, ". Time elapsed: ", end_time - start_time, " microseconds!");
+	for i in range(1, 5):
+		var start_time = Time.get_ticks_msec();
+		var ans = chess_engine_white.count_move(chessboard, i);
+		var end_time = Time.get_ticks_msec();
+		print("Test ", i, ": ", ans, ". Time elapsed: ", end_time - start_time, " ms!");
 
 	initialRender();
 	renderBoard(chessboard);
